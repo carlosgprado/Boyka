@@ -1,7 +1,8 @@
 /////////////////////////////////////////////////////////////////////////////////////
 // BoykaConsole.cpp
 //
-// This program controls the DLL loading and the snapshot/restore process.
+// This program controls the DLL loading and the snapshot/restore process among others.
+// All the heavy lifting is done here.
 //
 // COMPILE with:
 // cl.exe /EHsc BoykaConsole.cpp advapi32.lib
@@ -169,6 +170,39 @@ main(int argc, char *argv[])
 
 
 	/////////////////////////////////////////////////////////////////////////////////////
+	// The LISTENER Thread
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	/* Winsock initialization */
+	WSADATA		wsd;
+	if (WSAStartup(MAKEWORD(2, 2), &wsd) != 0)
+	{
+		printf("[debug] Error: Can't load WinSock");
+		return 1;
+	}
+
+	/* Create the Communications Module thread */
+	HANDLE	hListenerThread;
+	DWORD	dwListenerThread;
+	hListenerThread = CreateThread(
+			NULL,
+			0,
+			ListenerThread,	// LPTHREAD_START_ROUTINE
+			0,				// LPVOID lpParam
+			0,
+			&dwListenerThread
+			);
+
+	if(hListenerThread != NULL)
+		printf("[debug] Listener Thread launched successfully! :)\n");
+	else
+		{
+			printf("[debug] Failed to launch Listener Thread. Aborting.\n");
+			DisplayError();
+			return 1;
+		}
+
+	/////////////////////////////////////////////////////////////////////////////////////
 	// Here starts the action :)
 	/////////////////////////////////////////////////////////////////////////////////////
 	BoykaDebugLoop(hProcess, originalByteBegin);
@@ -220,6 +254,8 @@ BoykaDebugLoop(HANDLE hProcess, BYTE originalByteBegin)
 				else if(de.u.Exception.ExceptionRecord.ExceptionAddress == (PVOID)dwBeginLoopAddress)
 					{
 						printf("[Debug - DebugLoop] Hit SaveProcessState Breakpoint!\n");
+						// TODO: Here goes some kind of blocking function. Don't restore 
+						// the breakpoint until you get the green light from the server :)
 						RestoreBreakpoint(hProcess, de.dwThreadId, (DWORD)de.u.Exception.ExceptionRecord.ExceptionAddress, originalByteBegin);
 						dwContinueStatus = SaveProcessState(de.dwProcessId);
 					}

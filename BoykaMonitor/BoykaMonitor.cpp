@@ -1,7 +1,7 @@
 /////////////////////////////////////////////////////////////////////////////////////
 // BoykaMonitor.cpp
 //
-// Server side fault monitor.
+// SERVER SIDE Fault Monitor.
 // It coordinates the attack with the hijacked client.
 /////////////////////////////////////////////////////////////////////////////////////
 
@@ -53,10 +53,18 @@ BoykaDebugLoop()
 		case EXCEPTION_DEBUG_EVENT:
 			switch(de.u.Exception.ExceptionRecord.ExceptionCode)
 			{
-			case EXCEPTION_BREAKPOINT:
-				// TODO: change this to a more elaborated
-				// 		 logging callback :)
-				MessageBoxA(0, "Found break point", "", 0);
+			case EXCEPTION_ACCESS_VIOLATION:
+				// TODO: Maybe consolidate all this logging callbacks using OOP:
+				//		 inherit from Exception Logging object or something like that
+				unsigned int lav = LogExceptionAccessViolation();
+				CommunicateToConsole(lav);
+
+				dwContinueStatus = DBG_CONTINUE;
+				break;
+
+			case EXCEPTION_STACK_OVERFLOW:
+				unsigned int lso = LogExceptionStackOverflow();
+				CommunicateToConsole(lso);
 
 				dwContinueStatus = DBG_CONTINUE;
 				break;
@@ -75,4 +83,22 @@ BoykaDebugLoop()
 
 		ContinueDebugEvent(de.dwProcessId, de.dwThreadId, dwContinueStatus);
 	}
+}
+
+
+unsigned int
+LogExceptionAccessViolation()
+{
+	// TODO: Maybe return type could be something more complex
+	//		 than int. Some kind of structure? 
+
+	return 0;
+}
+
+
+unsigned int
+LogExceptionStackOverflow()
+{
+
+	return 0;
 }

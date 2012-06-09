@@ -4,6 +4,11 @@
 // Definitions and stuff.
 /////////////////////////////////////////////////////////////////////////////////////
 
+// Header guards are good
+#ifndef BOYKA_H
+#define BOYKA_H
+
+
 #define DLL_NAME "BoykaDLL.dll"
 #define VICTIM_SOFTWARE "DWRCC.exe"
 
@@ -15,14 +20,19 @@
 #define dwExitLoopAddress	0x0040DC7A	// cgp_ArithmeticSender01+1ba
 
 
-
-// IPC related defines
+/////////////////////////////////////////////////////////////////////////////////////
+// IPC related defines.
+/////////////////////////////////////////////////////////////////////////////////////
 #define FULL_MAP_NAME	"Local\\BoykaFileMap"
 #define MAP_SIZE		65536
 #define VIEW_OFFSET		0
 #define VIEW_SIZE		1024
-#define Use_wprintf_Instead_Of_printf printf	// don't ask. Some dumb error relating CeLib.h
 
+
+/////////////////////////////////////////////////////////////////////////////////////
+// Miscelaneous.
+/////////////////////////////////////////////////////////////////////////////////////
+#define Use_wprintf_Instead_Of_printf printf	// don't ask. Some dumb error relating CeLib.h
 
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -30,20 +40,24 @@
 /////////////////////////////////////////////////////////////////////////////////////
 PBYTE CreateMessageServer(void);
 PBYTE MessagingClient(void);
+
 void BoykaDebugLoop(HANDLE, BYTE);
+
 BYTE SetBreakpoint(HANDLE, DWORD);
 int RestoreBreakpoint(HANDLE, DWORD, DWORD, BYTE);
+
 int SaveProcessState(int);
 int RestoreProcessState(int);
+
 BOOL SetPrivilege(HANDLE, LPCTSTR, BOOL); // I love MSDN :)
 void DisplayError(void);
-
 char* GetFuzzStringCase(void);
 
 /////////////////////////////////////////////////////////////////////////////////////
 // Custom complex variables.
 /////////////////////////////////////////////////////////////////////////////////////
 
+// Virtual Memory Information Object
 struct VMOBJECT
 {
 	MEMORY_BASIC_INFORMATION mbi;
@@ -53,6 +67,7 @@ struct VMOBJECT
 typedef struct VMOBJECT *LPVMOBJECT;
 
 
+// Thread Information Object
 struct THOBJECT
 {
 	DWORD	th32ThreadID;
@@ -80,4 +95,5 @@ int IntegerFuzzCases[] = {
 	0xFFFFFFFF, 0x7FFFFFFF
 	};
 
-						
+
+#endif	// BOYKA_H

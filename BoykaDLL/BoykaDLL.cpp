@@ -22,46 +22,49 @@
 #include <Windows.h>
 #include <detours.h>
 #include <assert.h>
-#include <time.h>	// used by rand()
-#include "Boyka.h"  // always the last one
+#include <time.h>		// used by rand()
+#include "Boyka.h"		// always the last one
 
 
 ///////////////////////////////////////////////////////////////////
 // Prototype for a function pointer to the "real" function.
 //
-// The typedef "declares" a function pointer with these
+// The typedef "declares" a FUNCTION POINTER with these
 // specific return value and arguments
-//
+// NOTE: This is something you will have to change every time...
 ///////////////////////////////////////////////////////////////////
 
 typedef int (*pArithmeticSender01)(char*, int, int); // function pointer declaration
 pArithmeticSender01 FuncToDetour = (pArithmeticSender01)(dwBeginLoopAddress); // initialization
 
 
-
-///////////////////////////////////////////////////////////////////
-// The detour function
-///////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+// The DETOUR function
+//
+// This will be executed everytime the {detoured, original, real} function 
+// gets hit. In our case overwrites the {detoured, original, real} arguments.
+//
+// NOTE: you may need to modify the way you locate the arguments on the stack,
+// depending on whether the function prolog has been executed yet or not...
+////////////////////////////////////////////////////////////////////////////////////
 
 int WINAPI MyArithmeticSender01(char* buf, int len, int unknown)
 {
 	// We have total R/W access to the intercepted function's variables
-	// They are located at EBP + 0x08, like in a normal call
+	// They are located at EBP + 0x08, like in a normal CALL
 	CONTEXT context;
 	context.ContextFlags = CONTEXT_FULL;
 	HANDLE hProc = GetCurrentProcess();		// pseudo-handle (only valid within the thread)
 	DWORD pRead;
 	LPVOID testAddr;
 
-	memset(&context, 0, sizeof(CONTEXT));
-
-
+	memset(&context, 0, sizeof(CONTEXT));	// initialize with 0x00 bytes
 
 	///////////////////////////////////////////////////////////////////
 	// Copy the test string into the victim memory space.
 	//
 	// I need to place the test string in our memory space
-	// so that it'll still be there after detour returns.
+	// so it'll still be there after detour returns.
 	///////////////////////////////////////////////////////////////////
 	char* test = GetFuzzStringCase();
 
@@ -81,8 +84,8 @@ int WINAPI MyArithmeticSender01(char* buf, int len, int unknown)
 
 
 	///////////////////////////////////////////////////////////////////
-	// NOTE: Nor GetThreadContext nor RtlCaptureContext worked.
-	// This is an alternative way to get some of the CONTEXT
+	// NOTE: Neither GetThreadContext nor RtlCaptureContext worked.
+	// So this is an alternative way to get some of the CONTEXT
 	// On a related note: "Real men do it in assembler" :)
 	///////////////////////////////////////////////////////////////////
 	__asm
@@ -114,6 +117,7 @@ int WINAPI MyArithmeticSender01(char* buf, int len, int unknown)
 
 	CloseHandle(hProc);
 
+	// It transfers execution back to the original point.
 	return FuncToDetour(buf, len, unknown);
 }
 
@@ -134,30 +138,9 @@ BOOL APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 			DisableThreadLibraryCalls(hDLL);
 			DetourTransactionBegin();
 			DetourUpdateThread(GetCurrentThread());
-			DetourAttach(&(PVOID&)FuncToDetour, MyArithmeticSender01); // *actual* detour
+			DetourAttach(&(PVOID&)FuncToDetour, MyArithmeticSender01); // actual detour fn_a -> fn_b
 			if(DetourTransactionCommit() == NO_ERROR)
-				OutputDebugString("send() detoured successfully");
-
-			/* Winsock initialization */
-			WSADATA		wsd;
-			if (WSAStartup(MAKEWORD(2, 2), &wsd) != 0)
-			{
-				OutputDebugString("[debug] Error: Can't load WinSock");
-				return 0;
-			}
-
-			/* Create the Communications Module thread */
-			HANDLE	hListenerThread;
-			DWORD	dwListenerThread;
-			hListenerThread = CreateThread(
-					NULL,
-					0,
-					ListenerThread,	// LPTHREAD_START_ROUTINE
-					0,				// LPVOID lpParam
-					0,
-					&dwListenerThread
-					);
-				
+				OutputDebugString("send() detoured successfully");				
 			break;
 
 
@@ -186,7 +169,7 @@ BOOL APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 // TODO: Change this to something more... sophisticated :)
 // 		 Some code reusing would be nice as well ;)
 //
-// NOTE: The *FuzzCases are defined in Boyka.h
+// NOTE: The XXXFuzzCases are defined in Boyka.h
 ///////////////////////////////////////////////////////////////////
 
 char*
