@@ -4,8 +4,6 @@
 // This implements the TCP components that allow
 // Server and Client side debuggers to talk to each other.
 //
-// NOTE: This code is in a separate file for readability/maintenance sake
-// 		 but actually is part of BoykaDLL.cpp
 //////////////////////////////////////////////////////////////////////////////////////
 
 #pragma comment(lib, "ws2_32.lib")
@@ -21,7 +19,8 @@
 // TODO: recv() is blocking, maybe implement it in a separate thread?
 ///////////////////////////////////////////////////////////////////
 
-DWORD WINAPI ListenerThread(LPVOID lpParam)
+DWORD WINAPI 
+ListenerThread(LPVOID lpParam)
 {
 	// This function will be executed in a separate thread.
 
@@ -85,6 +84,14 @@ DWORD WINAPI ListenerThread(LPVOID lpParam)
 	// start sending() and receiving() ...
 	//////////////////////////////////////////////////////////////////////
 	do {
+			// NOTE: Maybe a Sleep() here so that it doesn't leave and enter
+			// the critical section continously (deadlock)?
+
+			// --------- Thread Synchronization. Start blocking. ---------
+			EnterCriticalSection(&boyka_cs);
+
+			// Recv() is blocking, we will be within the critical section 
+			// (blocking the snapshot loop) as long as no packet arrives
 			iRecv = recv(sock, szRecvBuffer, BOYKA_BUFLEN, 0);
 			if (iRecv == 0)
 				break;
@@ -96,7 +103,7 @@ DWORD WINAPI ListenerThread(LPVOID lpParam)
 
 			// recv'd fine. Append trailing 0x00 byte to the string.
 			szRecvBuffer[iRecv] == '\0';
-
+			
 			// Sending back kind of an ACK
 			iSend = send(
 					sock,
@@ -110,10 +117,16 @@ DWORD WINAPI ListenerThread(LPVOID lpParam)
 				OutputDebugString("[debug] Error: Send failed\n");
 				break;
 			}
-
+			
 			// DO SOMETHING with the bytes you just received :)
 			ProcessIncomingData(szRecvBuffer);
 
+			// --------- Thread Synchronization. Stop blocking. ---------
+			// NOTE: since the system is FAIR to all threads, I assume releasing the CS
+			// will schedule the other thread (since it requested access before)
+			// Source: "Windows via C/C++", 5th edition
+			LeaveCriticalSection(&boyka_cs);
+			
 	} while(iRecv > 0)
 
 	}
@@ -125,7 +138,7 @@ DWORD WINAPI ListenerThread(LPVOID lpParam)
 }
 
 
-VOID
+unsigned int
 ProcessIncomingData(char *szBuffer)
 {
 	// What's BoykaMonitor saying?

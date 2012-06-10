@@ -41,7 +41,8 @@
 PBYTE CreateMessageServer(void);
 PBYTE MessagingClient(void);
 
-void BoykaDebugLoop(HANDLE, BYTE);
+DWORD WINAPI ListenerThread(LPVOID);
+DWORD DebuggingThread(LPVOID);
 
 BYTE SetBreakpoint(HANDLE, DWORD);
 int RestoreBreakpoint(HANDLE, DWORD, DWORD, BYTE);
@@ -49,9 +50,20 @@ int RestoreBreakpoint(HANDLE, DWORD, DWORD, BYTE);
 int SaveProcessState(int);
 int RestoreProcessState(int);
 
+unsigned int ProcessIncomingData(char *)
+
 BOOL SetPrivilege(HANDLE, LPCTSTR, BOOL); // I love MSDN :)
 void DisplayError(void);
 char* GetFuzzStringCase(void);
+
+
+/////////////////////////////////////////////////////////////////////////////////////
+// Simple GLOBAL vars.
+/////////////////////////////////////////////////////////////////////////////////////
+
+// This little thing will allow me to synchronize threads.
+CRITICAL_SECTION	boyka_cs;
+
 
 /////////////////////////////////////////////////////////////////////////////////////
 // Custom complex variables.

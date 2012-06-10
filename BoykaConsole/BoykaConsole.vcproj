@@ -171,7 +171,19 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath="..\BoykaDLL\BoykaCommunication.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\BoykaConsole.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\BoykaDebugging.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\BoykaSystem.cpp"
 				>
 			</File>
 		</Filter>
