@@ -33,6 +33,8 @@
 // Miscelaneous.
 /////////////////////////////////////////////////////////////////////////////////////
 #define Use_wprintf_Instead_Of_printf printf	// don't ask. Some dumb error relating CeLib.h
+#define BOYKA_BUFLEN 1024	// 1K would do :)
+#define BOYKA_PACKET_PROCESSED	0
 
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -42,11 +44,14 @@ PBYTE CreateMessageServer(void);
 PBYTE MessagingClient(void);
 
 DWORD WINAPI ListenerThread(LPVOID);
-DWORD DebuggingThread(LPVOID);
+void ConsoleDebuggingThread(LPVOID);
+void MonitorDebuggingThread(LPVOID);
+
 
 BYTE SetBreakpoint(HANDLE, DWORD);
 int RestoreBreakpoint(HANDLE, DWORD, DWORD, BYTE);
 
+BOYKAPROCESSINFO FindProcessByName(char *);
 int SaveProcessState(int);
 int RestoreProcessState(int);
 
@@ -76,8 +81,6 @@ struct VMOBJECT
 	VOID* data;
 };
 
-typedef struct VMOBJECT *LPVMOBJECT;
-
 
 // Thread Information Object
 struct THOBJECT
@@ -86,6 +89,17 @@ struct THOBJECT
 	HANDLE	thHandle;
 	CONTEXT	thContext;
 };
+
+
+// Process information (short)
+typedef struct
+{
+	char*	szExeName;
+	DWORD	Pid;
+	HANDLE	hProcess;
+}BOYKAPROCESSINFO;
+
+
 
 
 /////////////////////////////////////////////////////////////////////////////////////

@@ -418,6 +418,56 @@ BOOL SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, BOOL bEnablePrivilege)
 
 
 /////////////////////////////////////////////////////////////////////////////////////
+// Look for a process using the executable name.
+// Returns a BOYKAPROCESSINFO structure.
+/////////////////////////////////////////////////////////////////////////////////////
+
+BOYKAPROCESSINFO
+FindProcessByName(char *szExeName)
+{
+	BOYKAPROCESSINFO	bpi;
+	PROCESSENTRY32 pe32;
+	pe32.dwSize = sizeof(PROCESSENTRY32); // initialization.
+
+	HANDLE hTool32 = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
+	BOOL bProcess = Process32First(hTool32, &pe32);
+
+	if(bProcess == TRUE)
+	{
+		while((Process32Next(hTool32, &pe32)) == TRUE)
+		{
+			if(strcmp(pe32.szExeFile, szExeName) == 0)
+			{
+				// Found. Populate the struct.
+				bpi.szExeName = pe32.szExeFile;
+				bpi.Pid = pe32.th32ProcessID;
+
+				printf("[Debug - FindProcessByName] Found %s\n", bpi.szExeName);
+				printf("[Debug - FindProcessByName] PID: %d\n", bpi.Pid);
+
+
+				if((bpi.hProcess = OpenProcess(PROCESS_ALL_ACCESS,
+						FALSE, Pid)) == NULL)
+					{
+						printf("Couldn't open a handle to %s\n", bpi.szExeName);
+						DisplayError();
+					}
+				else
+					printf("[Debug - FindProcessByName] Got an ALL_ACCESS handle to process.\n");
+
+
+			} // if strcmp... closing bracket
+		} // while closing bracket
+	}
+	// Cleanup
+	CloseHandle(hTool32);
+
+	return bpi;
+}
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////
 // Just a little nice auxiliary function.
 // Allows for verbose debug info regarding errors.
 /////////////////////////////////////////////////////////////////////////////////////

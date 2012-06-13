@@ -31,13 +31,8 @@ vector<VMOBJECT>	memorySnapshot;	// Memory blocks (and metadata) at process snap
 int
 main(int argc, char *argv[])
 {
-	vector<string>processNames;
-	PROCESSENTRY32 pe32;
-	pe32.dwSize = sizeof(PROCESSENTRY32); // initialization.
 	HANDLE hThisProcess = 0;
-	HANDLE hProcess = 0;
-	char* szExeName = NULL;
-	DWORD Pid = 0;
+	BOYKAPROCESSINFO	bpiCon;
 
 
 	/////////////////////////////////////////////////////////////////////////////////////
@@ -68,80 +63,46 @@ main(int argc, char *argv[])
 
 
 
-	/////////////////////////////////////////////////////////////////////////////////////
-	// Look for a process to hook.
-	// Gets the Pid and injects the "detouring" DLL.
-	/////////////////////////////////////////////////////////////////////////////////////
+	bpiCon = FindProcessByName(VICTIM_SOFTWARE);
 
-	HANDLE hTool32 = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
-	BOOL bProcess = Process32First(hTool32, &pe32);
+	char *DirPath = new char[MAX_PATH];
+	char *FullPath = new char[MAX_PATH];
+	GetCurrentDirectory(MAX_PATH, DirPath);
+	sprintf_s(FullPath, MAX_PATH, "%s\\%s", DirPath, DLL_NAME);
 
-	if(bProcess == TRUE)
-	{
-		while((Process32Next(hTool32, &pe32)) == TRUE)
-		{
-			processNames.push_back(pe32.szExeFile);
-			if(strcmp(pe32.szExeFile, VICTIM_SOFTWARE) == 0)
-			{
-				// Found. Now we just need to inject the DLL.
-				// We will use the CreateRemoteThread method.
-
-				szExeName = pe32.szExeFile;
-				Pid = pe32.th32ProcessID;
-
-				printf("[Debug - Search Proc] Found %s\n", szExeName);
-				printf("[Debug - Search Proc] PID: %d\n", Pid);
-
-				char *DirPath = new char[MAX_PATH];
-				char *FullPath = new char[MAX_PATH];
-				GetCurrentDirectory(MAX_PATH, DirPath);
-				sprintf_s(FullPath, MAX_PATH, "%s\\%s", DirPath, DLL_NAME);
-
-				printf("[Debug - DLL inject] Proceding with DLL injection now...\n");
-
-				if((hProcess = OpenProcess(PROCESS_ALL_ACCESS,
-						FALSE, Pid)) == NULL)
-					{
-						printf("Couldn't open a handle to %s\n", szExeName);
-						DisplayError();
-					}
+	printf("[Debug - DLL inject] Proceding with DLL injection now...\n");
 
 
-				/////////////////////////////////////////////////////////////////////////////
-				// DLL injection sexiness starts here
-				/////////////////////////////////////////////////////////////////////////////
-				LPVOID LoadLibraryAddr =
-						(LPVOID)GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryA");
+	/////////////////////////////////////////////////////////////////////////////
+	// DLL injection sexiness starts here
+	/////////////////////////////////////////////////////////////////////////////
+	LPVOID LoadLibraryAddr =
+			(LPVOID)GetProcAddress(GetModuleHandle("kernel32.dll"), "LoadLibraryA");
 
-				LPVOID PathStringAlloc = (LPVOID)VirtualAllocEx(hProcess, NULL, strlen(FullPath),
-						MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE); // allocate memory for the path string.
+	LPVOID PathStringAlloc = (LPVOID)VirtualAllocEx(bpiCon.hProcess, NULL, strlen(FullPath),
+			MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE); // allocate memory for the path string.
 
-				WriteProcessMemory(hProcess, PathStringAlloc, FullPath,
-						strlen(FullPath), NULL); // write the string to the victim's memory space.
+	WriteProcessMemory(bpiCon.hProcess, PathStringAlloc, FullPath,
+			strlen(FullPath), NULL); // write the string to the victim's memory space.
 
-				HANDLE hRemoteThread = CreateRemoteThread(hProcess, NULL, NULL, (LPTHREAD_START_ROUTINE)LoadLibraryAddr,
-						PathStringAlloc, NULL, NULL); // new thread, execs LoadLibraryA("PathStringAlloc").
+	HANDLE hRemoteThread = CreateRemoteThread(bpiCon.hProcess, NULL, NULL, (LPTHREAD_START_ROUTINE)LoadLibraryAddr,
+			PathStringAlloc, NULL, NULL); // new thread, execs LoadLibraryA("PathStringAlloc").
 
-				if(hRemoteThread != NULL) {
-					printf("[Debug - DLL inject] Remote Thread created.\n");
-					printf("[Debug - DLL inject] DLL %s injected.\n", FullPath);
-				} else {
-					printf("[Debug - DLL inject] Error! Remote Thread couldn't be created.\n");
-					DisplayError();
-					return 1;
-				}
-
-				// cleanup.
-				delete [] DirPath;
-				delete [] FullPath;
-
-			} // if closing bracket
-		}
+	if(hRemoteThread != NULL) {
+		printf("[Debug - DLL inject] Remote Thread created.\n");
+		printf("[Debug - DLL inject] DLL %s injected.\n", FullPath);
+	} else {
+		printf("[Debug - DLL inject] Error! Remote Thread couldn't be created.\n");
+		DisplayError();
+		return 1;
 	}
 
-	CloseHandle(hTool32);
+	// cleanup.
+	delete [] DirPath;
+	delete [] FullPath;
 
-	if(Pid == 0)
+
+	if(bpiCon.Pid == 0)
 		{
 			printf("[Debug - Main] Couldn't find process %s\n", VICTIM_SOFTWARE);
 			printf("[Debug - Main] Is the victim running?\n");
@@ -192,16 +153,16 @@ main(int argc, char *argv[])
 	/////////////////////////////////////////////////////////////////////////////////////
 	// The DEBUGGING Thread
 	/////////////////////////////////////////////////////////////////////////////////////
-	HANDLE	hDebuggingThread;
-	DWORD	dwDebuggingThread;
+	HANDLE	hConsoleDebuggingThread;
+	DWORD	dwConsoleDebuggingThread;
 
-	hDebuggingThread = CreateThread(
+	hConsoleDebuggingThread = CreateThread(
 			NULL,
 			0,
-			DebuggingThread,	//  LPTHREAD_START_ROUTINE
-			&Pid,				//	LPVOID lpParam
+			ConsoleDebuggingThread,	//  LPTHREAD_START_ROUTINE
+			&bpiCon,				//	LPVOID? lpParam
 			0,
-			&dwDebuggingThread
+			&dwConsoleDebuggingThread
 			);
 
 
@@ -209,7 +170,7 @@ main(int argc, char *argv[])
 	/////////////////////////////////////////////////////////////////////////////////////
 	// We want main() to let the threads live...
 	/////////////////////////////////////////////////////////////////////////////////////
-	HANDLE	hTreads[] = {hListenerThread, hDebuggingThread};
+	HANDLE	hTreads[] = {hListenerThread, hConsoleDebuggingThread};
 
 	WaitForMultipleObjects(2, &hTreads, TRUE, INFINITE);
 
@@ -217,7 +178,7 @@ main(int argc, char *argv[])
 	// Cleanup
 	DeleteCriticalSection(&boyka_cs);
 
-	CloseHandle(hProcess);
+	CloseHandle(bpiCon.hProcess);
 	CloseHandle(hThisProcess);
 
 	return 0;

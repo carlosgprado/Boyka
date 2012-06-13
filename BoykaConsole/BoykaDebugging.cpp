@@ -18,15 +18,15 @@
 /////////////////////////////////////////////////////////////////////////////////////
 // Boyka Console Debugging Thread.
 //
-// Code in response of diverse events (breakpoint hit, exception raised, etc.)
+// This code basically controls the hijacked client save/restore loop.
 /////////////////////////////////////////////////////////////////////////////////////
-DWORD
-DebuggingThread(LPVOID lpParam)
+void
+ConsoleDebuggingThread(LPVOID lpParam)
 {
 	unsigned int iterationNumber = 0;
 	DEBUG_EVENT de = {0};
 	DWORD dwContinueStatus = DBG_CONTINUE;
-	DWORD Pid = 0;
+	BOYKAPROCESSINFO bpiCon;
 	HANDLE	hProcess = 0;
 
 
@@ -133,6 +133,78 @@ DebuggingThread(LPVOID lpParam)
 
 
 /////////////////////////////////////////////////////////////////////////////////////
+// Boyka Monitor Debugging Thread.
+//
+// This code debugs the server and detects any exception (AV, etc.)
+// Exceptions are GOOD :) We log as much data as possible and notify BoykaConsole
+// so it can log the last sent packet, that is, the one causing the exception
+/////////////////////////////////////////////////////////////////////////////////////
+void
+MonitorDebuggingThread(LPVOID lpParam)
+{
+
+	// Don't forget to CAST the lpParam before dereferencing.
+	bpiMon = *((BOYKAPROCESSINFO*)lpParam);
+
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Attach to the process
+	/////////////////////////////////////////////////////////////////////////////////////
+	BOOL bAttach = DebugActiveProcess(bpiMon.Pid);
+	if(bAttach == 0) {
+		printf("[Debug] Couldn't attach to %s. ErrCode: %u\n", bpiMon.szExeName, GetLastError());
+		ExitProcess(1);
+	} else {
+		printf("[Debug] Attached to %s!\n", bpiMon.szExeName);
+	}
+
+
+	DEBUG_EVENT de;
+	DWORD dwContinueStatus = 0;
+
+	while(1)
+	{
+		WaitForDebugEvent(&de, INFINITE);
+
+		switch (de.dwDebugEventCode)
+		{
+		case EXCEPTION_DEBUG_EVENT:
+			switch(de.u.Exception.ExceptionRecord.ExceptionCode)
+			{
+			case EXCEPTION_ACCESS_VIOLATION:
+				// TODO: Maybe consolidate all this logging callbacks using OOP:
+				//		 inherit from Exception Logging object or something like that
+				unsigned int lav = LogExceptionAccessViolation();
+				CommunicateToConsole(lav);
+
+				dwContinueStatus = DBG_CONTINUE;
+				break;
+
+			case EXCEPTION_STACK_OVERFLOW:
+				unsigned int lso = LogExceptionStackOverflow();
+				CommunicateToConsole(lso);
+
+				dwContinueStatus = DBG_CONTINUE;
+				break;
+
+			default:	/* unhandled exception */
+				dwContinueStatus = DBG_EXCEPTION_NOT_HANDLED;
+				break;
+			}
+			break;
+
+		// We are only interested in exceptions. The rest aren't processed (for now)
+		default:
+			dwContinueStatus = DBG_EXCEPTION_NOT_HANDLED;
+			break;
+		}
+
+		ContinueDebugEvent(de.dwProcessId, de.dwThreadId, dwContinueStatus);
+	}
+}
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////
 // Rather self explanatory :)
 /////////////////////////////////////////////////////////////////////////////////////
 BYTE
@@ -230,4 +302,26 @@ RestoreBreakpoint(HANDLE hProcess, DWORD dwThreadId, DWORD dwAddress, BYTE origi
 
 
 	return 1;	// This means cool
+}
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////
+// This functions are dummy right now. Elaborate on them.
+/////////////////////////////////////////////////////////////////////////////////////
+unsigned int
+LogExceptionAccessViolation()
+{
+	// TODO: Maybe return type could be something more complex
+	//		 than int. Some kind of structure? 
+
+	return 0;
+}
+
+
+unsigned int
+LogExceptionStackOverflow()
+{
+
+	return 0;
 }

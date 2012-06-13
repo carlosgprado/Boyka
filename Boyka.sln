@@ -1,11 +1,11 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 10.00
-# Visual Studio 2008
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BoykaConsole", "BoykaConsole\BoykaConsole.vcproj", "{09359BEC-20A4-4AF6-8506-C2F708D7E67E}"
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BoykaConsole", "BoykaConsole\BoykaConsole.vcxproj", "{09359BEC-20A4-4AF6-8506-C2F708D7E67E}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BoykaDLL", "BoykaDLL\BoykaDLL.vcproj", "{FE853DE2-4C96-4C8F-91C6-4D1FEAEBBCD1}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BoykaDLL", "BoykaDLL\BoykaDLL.vcxproj", "{FE853DE2-4C96-4C8F-91C6-4D1FEAEBBCD1}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BoykaMonitor", "BoykaMonitor\BoykaMonitor.vcproj", "{9B180C56-F9E3-4742-9E15-BE59C3C73C51}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "BoykaMonitor", "BoykaMonitor\BoykaMonitor.vcxproj", "{9B180C56-F9E3-4742-9E15-BE59C3C73C51}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

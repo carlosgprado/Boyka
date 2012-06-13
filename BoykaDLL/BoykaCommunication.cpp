@@ -8,8 +8,7 @@
 
 #pragma comment(lib, "ws2_32.lib")
 #include <winsock2.h>
-
-#define BOYKA_BUFLEN 1024	// 1K would do :)
+#include "Boyka.h"
 
 
 
@@ -119,7 +118,12 @@ ListenerThread(LPVOID lpParam)
 			}
 			
 			// DO SOMETHING with the bytes you just received :)
-			ProcessIncomingData(szRecvBuffer);
+			unsigned int procData = ProcessIncomingData(szRecvBuffer);
+			
+			// TODO: Decide how to handle this...
+			if(procData != BOYKA_PACKET_PROCESSED)
+				printf("[debug] Oooppss! BoykaCommunication: Error processing packet.\n");
+
 
 			// --------- Thread Synchronization. Stop blocking. ---------
 			// NOTE: since the system is FAIR to all threads, I assume releasing the CS
@@ -129,7 +133,6 @@ ListenerThread(LPVOID lpParam)
 			
 	} while(iRecv > 0)
 
-	}
 	// Cleanup
 	closesocket(sClient);
 	WSACleanup();
@@ -146,5 +149,5 @@ ProcessIncomingData(char *szBuffer)
 	//	1) to log the last packet, in case it resulted in an exception
 	//	2) to restore the process state (send the next packet)
 
-	return 0;
+	return BOYKA_PACKET_PROCESSED;
 }
