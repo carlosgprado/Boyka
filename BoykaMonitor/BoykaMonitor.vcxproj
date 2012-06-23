@@ -49,6 +49,8 @@
     <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">AllRules.ruleset</CodeAnalysisRuleSet>
     <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" />
     <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" />
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">C:\Users\carlos\Documents\Visual Studio 2010\Projects\Boyka\BoykaConsole;$(IncludePath)</IncludePath>
+    <SourcePath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">C:\Users\carlos\Documents\Visual Studio 2010\Projects\Boyka\BoykaConsole;$(SourcePath)</SourcePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -89,11 +91,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\BoykaDLL\BoykaCommunication.cpp" />
+    <ClCompile Include="..\BoykaConsole\BoykaCommunication.cpp" />
+    <ClCompile Include="..\BoykaConsole\BoykaDebugging.cpp" />
+    <ClCompile Include="..\BoykaConsole\BoykaSystem.cpp" />
     <ClCompile Include="BoykaMonitor.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\BoykaConsole\Boyka.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

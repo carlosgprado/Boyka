@@ -20,7 +20,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\BoykaConsole\Boyka.h">
+    <ClInclude Include="Fuzzing.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -4,10 +4,11 @@
 // Definitions and stuff.
 /////////////////////////////////////////////////////////////////////////////////////
 
-// Header guards are good
-#ifndef BOYKA_H
-#define BOYKA_H
+// Header guards are good ;)
+#ifndef _BOYKA_H
+#define _BOYKA_H
 
+#include <Windows.h>
 
 #define DLL_NAME "BoykaDLL.dll"
 #define VICTIM_SOFTWARE "DWRCC.exe"
@@ -19,7 +20,6 @@
 #define dwBeginLoopAddress	0x0040DAC0	// cgp_ArithmeticSender01
 #define dwExitLoopAddress	0x0040DC7A	// cgp_ArithmeticSender01+1ba
 
-
 /////////////////////////////////////////////////////////////////////////////////////
 // IPC related defines.
 /////////////////////////////////////////////////////////////////////////////////////
@@ -28,7 +28,6 @@
 #define VIEW_OFFSET		0
 #define VIEW_SIZE		1024
 
-
 /////////////////////////////////////////////////////////////////////////////////////
 // Miscelaneous.
 /////////////////////////////////////////////////////////////////////////////////////
@@ -36,6 +35,32 @@
 #define BOYKA_BUFLEN 1024	// 1K would do :)
 #define BOYKA_PACKET_PROCESSED	0
 
+/////////////////////////////////////////////////////////////////////////////////////
+// Custom complex variables.
+/////////////////////////////////////////////////////////////////////////////////////
+
+// Virtual Memory Information Object
+typedef struct
+{
+	MEMORY_BASIC_INFORMATION mbi;
+	VOID* data;
+} VMOBJECT;
+
+// Thread Information Object
+typedef struct
+{
+	DWORD	th32ThreadID;
+	HANDLE	thHandle;
+	CONTEXT	thContext;
+} THOBJECT;
+
+// Process information (short)
+typedef struct
+{
+	char*	szExeName;
+	DWORD	Pid;
+	HANDLE	hProcess;
+} BOYKAPROCESSINFO;
 
 /////////////////////////////////////////////////////////////////////////////////////
 // Custom function declarations.
@@ -47,7 +72,6 @@ DWORD WINAPI ListenerThread(LPVOID);
 void ConsoleDebuggingThread(LPVOID);
 void MonitorDebuggingThread(LPVOID);
 
-
 BYTE SetBreakpoint(HANDLE, DWORD);
 int RestoreBreakpoint(HANDLE, DWORD, DWORD, BYTE);
 
@@ -55,71 +79,16 @@ BOYKAPROCESSINFO FindProcessByName(char *);
 int SaveProcessState(int);
 int RestoreProcessState(int);
 
-unsigned int ProcessIncomingData(char *)
+unsigned int ProcessIncomingData(char *);
 
 BOOL SetPrivilege(HANDLE, LPCTSTR, BOOL); // I love MSDN :)
 void DisplayError(void);
 char* GetFuzzStringCase(void);
 
+unsigned int LogExceptionAccessViolation(void);
+unsigned int LogExceptionStackOverflow(void);
 
-/////////////////////////////////////////////////////////////////////////////////////
-// Simple GLOBAL vars.
-/////////////////////////////////////////////////////////////////////////////////////
-
-// This little thing will allow me to synchronize threads.
-CRITICAL_SECTION	boyka_cs;
+unsigned int CommunicateToConsole(unsigned int);
 
 
-/////////////////////////////////////////////////////////////////////////////////////
-// Custom complex variables.
-/////////////////////////////////////////////////////////////////////////////////////
-
-// Virtual Memory Information Object
-struct VMOBJECT
-{
-	MEMORY_BASIC_INFORMATION mbi;
-	VOID* data;
-};
-
-
-// Thread Information Object
-struct THOBJECT
-{
-	DWORD	th32ThreadID;
-	HANDLE	thHandle;
-	CONTEXT	thContext;
-};
-
-
-// Process information (short)
-typedef struct
-{
-	char*	szExeName;
-	DWORD	Pid;
-	HANDLE	hProcess;
-}BOYKAPROCESSINFO;
-
-
-
-
-/////////////////////////////////////////////////////////////////////////////////////
-// Fuzz Test Cases.
-/////////////////////////////////////////////////////////////////////////////////////
-
-char* StringFuzzCases[] = {
-	"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-	"%n%n%n%n%n%n%n%n%n%n%n%n%n%n%n%n%n%n%n%n%n%n%n%n%n%n%n%n%n%n%n",
-	"massive p0wnage",
-	"It's full of stars..."
-	};
-	
-
-int IntegerFuzzCases[] = { 
-	0x00, 
-	0x000000FF, 0x0000007F,
-	0x0000FFFF, 0x00007FFF, 
-	0xFFFFFFFF, 0x7FFFFFFF
-	};
-
-
-#endif	// BOYKA_H
+#endif	// _BOYKA_H

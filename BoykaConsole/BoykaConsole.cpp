@@ -20,11 +20,14 @@ using std::string;
 using std::vector;
 
 
+
+extern CRITICAL_SECTION	boyka_cs;
+
 // Needed for the process snapshot/restore
 // TODO: There must be a better way that make this global...
 
-vector<THOBJECT>	threadSnapshot; // Thread information at process snapshot
-vector<VMOBJECT>	memorySnapshot;	// Memory blocks (and metadata) at process snaphot
+extern vector<THOBJECT>	threadSnapshot; // Thread information at process snapshot
+extern vector<VMOBJECT>	memorySnapshot;	// Memory blocks (and metadata) at process snaphot
 
 
 
@@ -34,6 +37,13 @@ main(int argc, char *argv[])
 	HANDLE hThisProcess = 0;
 	BOYKAPROCESSINFO	bpiCon;
 
+	if(argc < 2)
+	{
+		printf("Usage: %s <victim process name>\n", argv[0]);
+		return 1;
+	}
+	
+	char *victimSoftware = argv[1];
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Change our privileges. We need to OpenProcess() with OPEN_ALL_ACCESS
@@ -62,8 +72,7 @@ main(int argc, char *argv[])
 	}
 
 
-
-	bpiCon = FindProcessByName(VICTIM_SOFTWARE);
+	bpiCon = FindProcessByName(victimSoftware);
 
 	char *DirPath = new char[MAX_PATH];
 	char *FullPath = new char[MAX_PATH];
@@ -159,7 +168,7 @@ main(int argc, char *argv[])
 	hConsoleDebuggingThread = CreateThread(
 			NULL,
 			0,
-			ConsoleDebuggingThread,	//  LPTHREAD_START_ROUTINE
+			(LPTHREAD_START_ROUTINE) ConsoleDebuggingThread,	//  LPTHREAD_START_ROUTINE
 			&bpiCon,				//	LPVOID? lpParam
 			0,
 			&dwConsoleDebuggingThread
@@ -172,7 +181,7 @@ main(int argc, char *argv[])
 	/////////////////////////////////////////////////////////////////////////////////////
 	HANDLE	hTreads[] = {hListenerThread, hConsoleDebuggingThread};
 
-	WaitForMultipleObjects(2, &hTreads, TRUE, INFINITE);
+	WaitForMultipleObjects(2, hTreads, TRUE, INFINITE);
 
 
 	// Cleanup

@@ -6,7 +6,7 @@
 //
 // COMPILE with:
 // cl.exe /EHsc /LD /I <path to detours.h> BoykaDll.cpp \
-//				BoykaCommunication.cpp <path to detours.lib> user32.lib
+//				<path to detours.lib> user32.lib
 //////////////////////////////////////////////////////////////////////////////////////////
 
 #pragma comment(lib, "detours.lib")
@@ -23,16 +23,17 @@
 #include <detours.h>
 #include <assert.h>
 #include <time.h>		// used by rand()
-#include "Boyka.h"		// always the last one
+#include "Fuzzing.h"
+#include <Boyka.h>		// always the last one
 
 
-///////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
 // Prototype for a function pointer to the "real" function.
 //
 // The typedef "declares" a FUNCTION POINTER with these
 // specific return value and arguments
 // NOTE: This is something you will have to change every time...
-///////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
 
 typedef int (*pArithmeticSender01)(char*, int, int); // function pointer declaration
 pArithmeticSender01 FuncToDetour = (pArithmeticSender01)(dwBeginLoopAddress); // initialization
@@ -51,7 +52,9 @@ pArithmeticSender01 FuncToDetour = (pArithmeticSender01)(dwBeginLoopAddress); //
 int WINAPI MyArithmeticSender01(char* buf, int len, int unknown)
 {
 	// We have total R/W access to the intercepted function's variables
-	// They are located at EBP + 0x08, like in a normal CALL
+	// They start at ESP + 0x04, since we operate *before* the prolog 
+	// Therefore EBP hasn't been pushed nor switched yet
+	// (at the top of the stack there's only saved EIP)
 	CONTEXT context;
 	context.ContextFlags = CONTEXT_FULL;
 	HANDLE hProc = GetCurrentProcess();		// pseudo-handle (only valid within the thread)
@@ -101,7 +104,7 @@ int WINAPI MyArithmeticSender01(char* buf, int len, int unknown)
 
 	ReadProcessMemory(
 			hProc,
-			(LPVOID)(context.Ebp + 8),	// Careful with optimized binaries w/o saved frame pointers!
+			(LPVOID)(context.Esp + 4),
 			(LPVOID)&pRead,
 			4, // buffer *pointer*
 			NULL);
@@ -109,7 +112,7 @@ int WINAPI MyArithmeticSender01(char* buf, int len, int unknown)
 
 	WriteProcessMemory(
 			hProc,
-			(LPVOID)(context.Ebp + 8),	// Careful with optimized binaries w/o saved frame pointers!
+			(LPVOID)(context.Esp + 4),
 			(LPVOID)&testAddr,
 			4,
 			NULL);

@@ -14,6 +14,7 @@
 #include "Boyka.h"
 
 
+extern CRITICAL_SECTION	boyka_cs;
 
 /////////////////////////////////////////////////////////////////////////////////////
 // Boyka Console Debugging Thread.
@@ -26,32 +27,31 @@ ConsoleDebuggingThread(LPVOID lpParam)
 	unsigned int iterationNumber = 0;
 	DEBUG_EVENT de = {0};
 	DWORD dwContinueStatus = DBG_CONTINUE;
-	BOYKAPROCESSINFO bpiCon;
 	HANDLE	hProcess = 0;
 
 
 	// Cast the lpParam before dereferencing.
-	Pid = *((DWORD*)lpParam);
+	BOYKAPROCESSINFO bpiCon = *((BOYKAPROCESSINFO*)lpParam);
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Attach to the process
 	/////////////////////////////////////////////////////////////////////////////////////
-	BOOL bAttach = DebugActiveProcess(Pid);
+	BOOL bAttach = DebugActiveProcess(bpiCon.Pid);
 	if(bAttach == 0) {
-		printf("[Debug - Attach] Couldn't attach to %s.\n", szExeName);
+		printf("[Debug - Attach] Couldn't attach to %s.\n", bpiCon.szExeName);
 		DisplayError();
 		ExitProcess(1);
 	} else {
-		printf("[Debug - Attach] Attached to %s!\n", szExeName);
+		printf("[Debug - Attach] Attached to %s!\n", bpiCon.szExeName);
 	}
 
 	// Get a handle to the process.
 	// TODO: I already got a handle. Pass this to the Thread along with the Pid
 	// through a structure, instead of OpenProccess twice.
 	if((hProcess = OpenProcess(PROCESS_ALL_ACCESS,
-		FALSE, Pid)) == NULL)
+		FALSE, bpiCon.Pid)) == NULL)
 	{
-		printf("Couldn't open a handle to %s\n", szExeName);
+		printf("Couldn't open a handle to %s\n", bpiCon.szExeName);
 		DisplayError();
 	}
 
@@ -144,7 +144,7 @@ MonitorDebuggingThread(LPVOID lpParam)
 {
 
 	// Don't forget to CAST the lpParam before dereferencing.
-	bpiMon = *((BOYKAPROCESSINFO*)lpParam);
+	BOYKAPROCESSINFO bpiMon = *((BOYKAPROCESSINFO*)lpParam);
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Attach to the process
@@ -160,6 +160,8 @@ MonitorDebuggingThread(LPVOID lpParam)
 
 	DEBUG_EVENT de;
 	DWORD dwContinueStatus = 0;
+	unsigned int lav, lso;
+
 
 	while(1)
 	{
@@ -173,14 +175,14 @@ MonitorDebuggingThread(LPVOID lpParam)
 			case EXCEPTION_ACCESS_VIOLATION:
 				// TODO: Maybe consolidate all this logging callbacks using OOP:
 				//		 inherit from Exception Logging object or something like that
-				unsigned int lav = LogExceptionAccessViolation();
+				lav = LogExceptionAccessViolation();
 				CommunicateToConsole(lav);
 
 				dwContinueStatus = DBG_CONTINUE;
 				break;
 
 			case EXCEPTION_STACK_OVERFLOW:
-				unsigned int lso = LogExceptionStackOverflow();
+				lso = LogExceptionStackOverflow();
 				CommunicateToConsole(lso);
 
 				dwContinueStatus = DBG_CONTINUE;
@@ -323,5 +325,13 @@ unsigned int
 LogExceptionStackOverflow()
 {
 
+	return 0;
+}
+
+
+unsigned int
+CommunicateToConsole(unsigned int x)
+{
+	// Dummy for now
 	return 0;
 }

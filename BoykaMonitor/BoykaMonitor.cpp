@@ -7,14 +7,22 @@
 // NOTE: This code is analogous to BoykaConsole (two threads: net and debug)
 /////////////////////////////////////////////////////////////////////////////////////
 
-#include "Boyka.h"
+#include <stdio.h>
 #include <Windows.h>
+#include <Boyka.h>
 
 
 int
 main(int argc, char *argv[])
 {
 	BOYKAPROCESSINFO bpiMon;
+
+	if(argc < 2)
+	{
+		printf("Usage: %s <server process name>\n", argv[0]);
+		return 1;
+	}
+	
 	char *serverExeName = argv[1];
 
 	// Find the process (command line argument)
@@ -26,7 +34,7 @@ main(int argc, char *argv[])
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Here starts the action :)
 	/////////////////////////////////////////////////////////////////////////////////////
-	MonitorDebuggingThread();
+	MonitorDebuggingThread(&bpiMon);
 
 
 	return 0;

@@ -16,6 +16,12 @@
 #include "Boyka.h"
 
 
+using namespace std;
+
+
+// Some global objects
+vector<THOBJECT>	threadSnapshot;
+vector<VMOBJECT>	memorySnapshot;
 
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -84,7 +90,7 @@ SaveProcessState(int pid)
 	printf("[Debug - Save Proc] Taking debuggee snapshot (mem & cpu state)...\n");
 
 	// Save the threads CONTEXT (cpu registers, flags, etc.)
-	for(int i=0; i < threadSnapshot.size(); i++)
+	for(unsigned int i=0; i < threadSnapshot.size(); i++)
 		{
 			CONTEXT threadContext;
 			threadContext.ContextFlags = CONTEXT_ALL;
@@ -206,7 +212,7 @@ SaveProcessState(int pid)
 
 
 	// At the end we must to resume all threads.
-	for(int i=0; i < threadSnapshot.size(); i++)
+	for(unsigned int i=0; i < threadSnapshot.size(); i++)
 		ResumeThread(threadSnapshot[i].thHandle);
 
 
@@ -285,9 +291,9 @@ RestoreProcessState(int pid)
 	/////////////////////////////////////////////////////////////////////////////////////
 
 	// This checks: "is the new thread on the old thread list?"
-	for(int i=0; i < threadRestore.size(); i++)
+	for(unsigned int i=0; i < threadRestore.size(); i++)
 		{
-			for(int j=0; j < threadSnapshot.size(); j++)
+			for(unsigned int j=0; j < threadSnapshot.size(); j++)
 				{
 					if(threadSnapshot[j].th32ThreadID == threadRestore[i].th32ThreadID)
 						{
@@ -332,7 +338,7 @@ RestoreProcessState(int pid)
 		printf("[Debug - Restore Proc] Got process handle (ALL ACCESS)\n");
 	}
 
-	for (int i=0; i < memorySnapshot.size(); i++)
+	for (unsigned int i=0; i < memorySnapshot.size(); i++)
 		{
 			BOOL bRestoredMem = WriteProcessMemory(hProcess,
 					memorySnapshot[i].mbi.BaseAddress,
@@ -350,7 +356,7 @@ RestoreProcessState(int pid)
 
 
 	// Don't forget to resume the threads at the end :P
-	for(int i=0; i < threadRestore.size(); i++)
+	for(unsigned int i=0; i < threadRestore.size(); i++)
 		{
 			if(ResumeThread(threadRestore[i].thHandle) == -1)
 				printf("[Debug - Restore Proc] Error resuming thread: 0x%x\n", threadRestore[i].th32ThreadID);
@@ -447,7 +453,7 @@ FindProcessByName(char *szExeName)
 
 
 				if((bpi.hProcess = OpenProcess(PROCESS_ALL_ACCESS,
-						FALSE, Pid)) == NULL)
+						FALSE, bpi.Pid)) == NULL)
 					{
 						printf("Couldn't open a handle to %s\n", bpi.szExeName);
 						DisplayError();
