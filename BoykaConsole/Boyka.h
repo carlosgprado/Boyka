@@ -88,7 +88,7 @@ char* GetFuzzStringCase(void);
 unsigned int LogExceptionAccessViolation(void);
 unsigned int LogExceptionStackOverflow(void);
 
-unsigned int CommunicateToConsole(unsigned int);
+int CommunicateToConsole(SOCKET, char *);
 
 
 #endif	// _BOYKA_H

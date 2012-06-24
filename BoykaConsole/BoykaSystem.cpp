@@ -431,7 +431,12 @@ BOOL SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, BOOL bEnablePrivilege)
 BOYKAPROCESSINFO
 FindProcessByName(char *szExeName)
 {
-	BOYKAPROCESSINFO	bpi;
+	BOYKAPROCESSINFO bpi;
+	// Structure initialization
+	bpi.hProcess = NULL;
+	bpi.Pid = 0;
+	bpi.szExeName = (char *)malloc(BOYKA_BUFLEN);
+
 	PROCESSENTRY32 pe32;
 	pe32.dwSize = sizeof(PROCESSENTRY32); // initialization.
 
@@ -445,7 +450,7 @@ FindProcessByName(char *szExeName)
 			if(strcmp(pe32.szExeFile, szExeName) == 0)
 			{
 				// Found. Populate the struct.
-				bpi.szExeName = pe32.szExeFile;
+				strncpy(bpi.szExeName, pe32.szExeFile, sizeof(pe32.szExeFile));
 				bpi.Pid = pe32.th32ProcessID;
 
 				printf("[Debug - FindProcessByName] Found %s\n", bpi.szExeName);
@@ -457,6 +462,8 @@ FindProcessByName(char *szExeName)
 					{
 						printf("Couldn't open a handle to %s\n", bpi.szExeName);
 						DisplayError();
+						printf("ABORTING.");
+						ExitProcess(1);
 					}
 				else
 					printf("[Debug - FindProcessByName] Got an ALL_ACCESS handle to process.\n");

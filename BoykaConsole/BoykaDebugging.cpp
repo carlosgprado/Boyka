@@ -176,14 +176,14 @@ MonitorDebuggingThread(LPVOID lpParam)
 				// TODO: Maybe consolidate all this logging callbacks using OOP:
 				//		 inherit from Exception Logging object or something like that
 				lav = LogExceptionAccessViolation();
-				CommunicateToConsole(lav);
+				//CommunicateToConsole(lav);
 
 				dwContinueStatus = DBG_CONTINUE;
 				break;
 
 			case EXCEPTION_STACK_OVERFLOW:
 				lso = LogExceptionStackOverflow();
-				CommunicateToConsole(lso);
+				//CommunicateToConsole(lso);
 
 				dwContinueStatus = DBG_CONTINUE;
 				break;
@@ -254,7 +254,7 @@ SetBreakpoint(HANDLE hProcess, DWORD dwAddress)
 			1
 			);
 
-	return originalByte;	// 1 means cool
+	return originalByte;
 }
 
 
@@ -303,7 +303,7 @@ RestoreBreakpoint(HANDLE hProcess, DWORD dwThreadId, DWORD dwAddress, BYTE origi
 			);
 
 
-	return 1;	// This means cool
+	return 1;	// 1 means cool
 }
 
 
@@ -329,9 +329,17 @@ LogExceptionStackOverflow()
 }
 
 
-unsigned int
-CommunicateToConsole(unsigned int x)
+int
+CommunicateToConsole(SOCKET s, char *msg)
 {
-	// Dummy for now
-	return 0;
+	int bytesSent = send(s, msg, sizeof(msg), 0);
+
+	// TODO: Which margin of error am I going to permit?
+	if(bytesSent == SOCKET_ERROR)
+	{
+		printf("[debug] Send() Error. Message: %s\n", msg);
+		return -1;
+	}
+
+	return bytesSent;
 }

@@ -45,6 +45,7 @@ main(int argc, char *argv[])
 	
 	char *victimSoftware = argv[1];
 
+
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Change our privileges. We need to OpenProcess() with OPEN_ALL_ACCESS
 	// in order to be able to debug another process.
@@ -71,8 +72,16 @@ main(int argc, char *argv[])
 		return 1;
 	}
 
-
+	
+	// This snippet must be here (after Priv Escalation) since
+	// it tries to get an ALL_ACCESS handle to the process.
 	bpiCon = FindProcessByName(victimSoftware);
+	if(bpiCon.Pid == 0)
+	{
+		printf("\n[debug] Process %s NOT found. Is it running?\n", victimSoftware);
+		return 1;
+	}
+
 
 	char *DirPath = new char[MAX_PATH];
 	char *FullPath = new char[MAX_PATH];
@@ -174,6 +183,15 @@ main(int argc, char *argv[])
 			&dwConsoleDebuggingThread
 			);
 
+
+	if(hConsoleDebuggingThread != NULL)
+		printf("[debug] Debugging Thread launched successfully! :)\n");
+	else
+		{
+			printf("[debug] Failed to launch Debugging Thread. Aborting.\n");
+			DisplayError();
+			return 1;
+		}
 
 
 	/////////////////////////////////////////////////////////////////////////////////////

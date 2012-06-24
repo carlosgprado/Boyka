@@ -12,6 +12,7 @@ Thumbs.db
 *.ncb
 *.old
 *.sdf
+*.opensdf
 *.suo
 *.tlb
 *.tlh

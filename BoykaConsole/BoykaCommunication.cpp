@@ -29,7 +29,7 @@ ListenerThread(LPVOID lpParam)
 	UNREFERENCED_PARAMETER(lpParam);
 	SOCKET		sServerListen, sClient;
 	struct		sockaddr_in localaddr;
-	int			iRecv, iSend;
+	int			iRecv = 0, iSend = 0;
 	char		szRecvBuffer[BOYKA_BUFLEN];
 	char*		szACKBuffer = "ALL_OK_NEXT_ONE";
 
@@ -37,7 +37,7 @@ ListenerThread(LPVOID lpParam)
 	sServerListen = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 	if (sServerListen == SOCKET_ERROR)
 	{
-		OutputDebugString((LPCWSTR)"[debug] Error: Can't load WinSock\n");
+		printf("[debug] Error: Can't load WinSock\n");
 		closesocket(sServerListen);
 		WSACleanup();
 		return 1;
@@ -47,33 +47,48 @@ ListenerThread(LPVOID lpParam)
 	localaddr.sin_family = AF_INET;
 	localaddr.sin_port = htons(1337);				// what else? :)
 
+	// BIND
 	if (bind(sServerListen, (struct sockaddr *)&localaddr,
 			sizeof(localaddr)) == SOCKET_ERROR)
 	{
-		OutputDebugString((LPCWSTR)"[debug] Error: Can't bind\n");
+		printf("[debug] Error: Can't bind\n");
 		closesocket(sServerListen);
 		WSACleanup();
 		return 1;
 	}
 	else
-		OutputDebugString((LPCWSTR)"[debug] Bound to 0.0.0.0:1337\n");
+		printf("[debug] Bound to 0.0.0.0:1337\n");
 
+	// SETSOCKOPTIONS
+	// I don't want recv() to block until something is received.
+	// Instead of this, a TIMEOUT will be set for the case no exception
+	// occurred on the server side (no feedback)
+	timeval tv;
+	tv.tv_usec = 500000;	// microseconds
+	
+	int sockOptRes = setsockopt(sServerListen, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(struct timeval));
+	if(sockOptRes == SOCKET_ERROR)
+		printf("[debug - setsockopt] Recv() Timeout couldn't be set.\n");
+	else
+		printf("[debug - setsockopt] Recv() Timeout set to %u microseconds.\n", tv.tv_usec);
+	
 
-	// TODO: Blocking shit. Rewrite with non-blocking version?
+	// LISTEN
 	if(listen(sServerListen, 5) == SOCKET_ERROR)
 	{
-		OutputDebugString((LPCWSTR)"[debug] Error: Listen failed\n");
+		printf("[debug] Error: Listen failed\n");
 		closesocket(sServerListen);
 		WSACleanup();
 		return 1;
 	}
 
 
+	// ACCEPT
 	// NULL because I don't care about the connecting client address
 	sClient = accept(sServerListen, NULL, NULL);
 	if (sClient == INVALID_SOCKET)
 	{
-		OutputDebugString((LPCWSTR)"[debug] Error: accept failed\n");
+		printf("[debug] Error: accept failed\n");
 		closesocket(sServerListen);
 		WSACleanup();
 		return 1;
@@ -84,24 +99,21 @@ ListenerThread(LPVOID lpParam)
 	// start sending() and receiving() ...
 	//////////////////////////////////////////////////////////////////////
 	do {
-			// NOTE: Maybe a Sleep() here so that it doesn't leave and enter
-			// the critical section continously (deadlock)?
-
 			// --------- Thread Synchronization. Start blocking. ---------
 			EnterCriticalSection(&boyka_cs);
 
 			// Recv() is blocking, we will be within the critical section 
-			// (blocking the snapshot loop) as long as no packet arrives
+			// (blocking the snapshot loop) until a TIMEOUT occurs
 			iRecv = recv(sServerListen, szRecvBuffer, BOYKA_BUFLEN, 0);
-			if (iRecv == 0)
-				break;
-			else if (iRecv == SOCKET_ERROR)
+			if (iRecv == SOCKET_ERROR)
 			{
-				OutputDebugString((LPCWSTR)"[debug] Error: Receive failed\n");
+				printf("[debug] Error: Recv() failed: %ld\n", WSAGetLastError());
+				DisplayError();
 				break;
 			}
 
-			// recv'd fine. Append trailing 0x00 byte to the string.
+			// Append trailing 0x00 byte to the string.
+			if(iRecv < 0) iRecv = 0;
 			szRecvBuffer[iRecv] = '\0';
 			
 			// Sending back kind of an ACK
@@ -114,7 +126,8 @@ ListenerThread(LPVOID lpParam)
 
 			if (iSend == SOCKET_ERROR)
 			{
-				OutputDebugString((LPCWSTR)"[debug] Error: Send failed\n");
+				printf("[debug] Error: Send() failed: %ld\n", WSAGetLastError());
+				DisplayError();
 				break;
 			}
 			
