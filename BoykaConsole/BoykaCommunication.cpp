@@ -5,10 +5,11 @@
 // Server and Client side debuggers to talk to each other.
 //////////////////////////////////////////////////////////////////////////////////////
 
-#pragma comment(lib, "ws2_32.lib")
-#include <winsock2.h>
+#include <winsock.h>
 #include <stdio.h>
 #include "Boyka.h"
+
+#pragma comment(lib, "ws2_32.lib")
 
 
 // This little thing will allow me to synchronize threads.
@@ -33,16 +34,28 @@ ListenerThread(LPVOID lpParam)
 	char		szRecvBuffer[BOYKA_BUFLEN];
 	char*		szACKBuffer = "ALL_OK_NEXT_ONE";
 
-
-	sServerListen = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-	if (sServerListen == SOCKET_ERROR)
+	/* Winsock initialization */
+	WSADATA		wsd;
+	if (WSAStartup(MAKEWORD(2, 2), &wsd) != 0)
 	{
-		printf("[debug] Error: Can't load WinSock\n");
-		closesocket(sServerListen);
+		printf("[debug] Error: Can't intialize WinSock");
+		DisplayError();
+		return 1;
+	}
+
+
+	// Create a SOCKET for connecting to server
+	sServerListen = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
+	if (sServerListen == INVALID_SOCKET)
+	{
+		printf("[debug] Error: Can't create the socket\n");
+		DisplayError();
 		WSACleanup();
 		return 1;
 	}
 
+
+	// Setup the TCP listening socket
 	localaddr.sin_addr.s_addr = htonl(INADDR_ANY);	// Listens in all interfaces
 	localaddr.sin_family = AF_INET;
 	localaddr.sin_port = htons(1337);				// what else? :)
@@ -74,17 +87,18 @@ ListenerThread(LPVOID lpParam)
 	
 
 	// LISTEN
-	if(listen(sServerListen, 5) == SOCKET_ERROR)
+	if(listen(sServerListen, SOMAXCONN) == SOCKET_ERROR)
 	{
 		printf("[debug] Error: Listen failed\n");
+		DisplayError();
 		closesocket(sServerListen);
 		WSACleanup();
 		return 1;
 	}
 
 
-	// ACCEPT
-	// NULL because I don't care about the connecting client address
+	// ACCEPT a client SOCKET
+	// NOTE: NULL because I don't care about the connecting client address
 	sClient = accept(sServerListen, NULL, NULL);
 	if (sClient == INVALID_SOCKET)
 	{
@@ -93,6 +107,10 @@ ListenerThread(LPVOID lpParam)
 		WSACleanup();
 		return 1;
 	}
+
+	// I don't need the server socket anymore
+	closesocket(sServerListen);
+
 
 	//////////////////////////////////////////////////////////////////////
 	// Once all this is initialized, we can finally 
@@ -104,10 +122,11 @@ ListenerThread(LPVOID lpParam)
 
 			// Recv() is blocking, we will be within the critical section 
 			// (blocking the snapshot loop) until a TIMEOUT occurs
-			iRecv = recv(sServerListen, szRecvBuffer, BOYKA_BUFLEN, 0);
+			iRecv = recv(sClient, szRecvBuffer, sizeof(szRecvBuffer), 0);
 			if (iRecv == SOCKET_ERROR)
 			{
 				printf("[debug] Error: Recv() failed: %ld\n", WSAGetLastError());
+				printf("iRecv: %d\n", iRecv);
 				DisplayError();
 				break;
 			}
@@ -118,7 +137,7 @@ ListenerThread(LPVOID lpParam)
 			
 			// Sending back kind of an ACK
 			iSend = send(
-					sServerListen,
+					sClient,
 					szACKBuffer,
 					sizeof(szACKBuffer),
 					0
@@ -147,6 +166,7 @@ ListenerThread(LPVOID lpParam)
 			
 	} while(iRecv > 0);
 
+
 	// Cleanup
 	closesocket(sClient);
 	WSACleanup();
@@ -162,6 +182,8 @@ ProcessIncomingData(char *szBuffer)
 	// It parses the incoming string and accordingly instruct:
 	//	1) to log the last packet, in case it resulted in an exception
 	//	2) to restore the process state (send the next packet)
+
+	printf("[debug] ProcessIncomingData() called.\n");
 
 	return BOYKA_PACKET_PROCESSED;
 }

@@ -7,16 +7,20 @@
 // NOTE: This code is analogous to BoykaConsole (two threads: net and debug)
 /////////////////////////////////////////////////////////////////////////////////////
 
+#undef UNICODE
 #include <stdio.h>
+#include <string.h>
 #include <Windows.h>
 #include <WinSock.h>
 #include <Boyka.h>
 
+#pragma comment(lib, "ws2_32.lib")
 
 
 int
 main(int argc, char *argv[])
 {
+	HANDLE hThisProcess = 0;
 	BOYKAPROCESSINFO bpiMon;
 
 	if(argc < 3)
@@ -28,6 +32,35 @@ main(int argc, char *argv[])
 	char *serverExeName = argv[1];
 	char *ipConsole = argv[2];
 
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Change our privileges. We need to OpenProcess() with OPEN_ALL_ACCESS
+	// in order to be able to debug another process.
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	if(!OpenProcessToken(
+			GetCurrentProcess(),	// handle
+			TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY,
+			&hThisProcess
+			))
+		{
+			printf("[Debug - PrivEsc] Error (OpenProcessToken)\n");
+			DisplayError();
+			return 1;
+		}
+
+	printf("[Debug - PrivEsc] Setting SeDebugPrivilege on this process...\n");
+
+	if(SetPrivilege(hThisProcess, SE_DEBUG_NAME, TRUE))
+		printf("[Debug - PrivEsc] Successfully set SeDebugPrivilege :)\n");
+	else {
+		printf("[Debug - PrivEsc] Unable to set SeDebugPrivilege :(\n");
+		DisplayError();
+		return 1;
+	}
+
+	
+	// This snippet must be here (after Priv Escalation) since
+	// it tries to get an ALL_ACCESS handle to the process.
 
 	// Find the process (command line argument)
 	bpiMon = FindProcessByName(serverExeName);
@@ -45,6 +78,8 @@ main(int argc, char *argv[])
 
 	/* Winsock initialization */
 	WSADATA		wsd;
+	SOCKET sockMon = INVALID_SOCKET;
+
 	if (WSAStartup(MAKEWORD(2, 2), &wsd) != 0)
 	{
 		printf("[debug] Error: Can't load WinSock");
@@ -61,24 +96,38 @@ main(int argc, char *argv[])
 	toConsole.sin_port = htons(1337);
 	toConsole.sin_addr.s_addr = inet_addr(ipConsole);
 
-	SOCKET sockMon = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	sockMon = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if(sockMon == INVALID_SOCKET)
 	{
 		printf("[debug] Couldn't create the socket to Console.\n");
+		DisplayError();
+		WSACleanup();
 		return 1;
 	}
 
 	// Try to connect...
-	if(connect(sockMon, (SOCKADDR *)&toConsole, sizeof(toConsole)) == SOCKET_ERROR)
+	int iConRes = connect(sockMon, (SOCKADDR *)&toConsole, sizeof(toConsole));
+	if(iConRes == SOCKET_ERROR)
 	{
 		printf("[debug] Unable to CONNECT to the Console (%s).\n", ipConsole);
+		closesocket(sockMon);
+		WSACleanup();
 		return 1;
 	}
 	else
 		printf("[debug] SUCCESSFULLY CONNECTED to the Console (%s).\n", ipConsole);
 	
 
-	
+	// Let's send a test string
+	char *sendbuf = "Hi there!";
+	int iResSend = send(sockMon, sendbuf, (int)strlen(sendbuf), 0);
+	if(iResSend == SOCKET_ERROR)
+	{
+		printf("Send() failed...\n");
+		DisplayError();
+	}
+
+
 	/////////////////////////////////////////////////////////////////////////////////////
 	// NOTE: Let's do some tests without threads for the moment.
 	/////////////////////////////////////////////////////////////////////////////////////

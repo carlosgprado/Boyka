@@ -122,7 +122,7 @@ main(int argc, char *argv[])
 
 	if(bpiCon.Pid == 0)
 		{
-			printf("[Debug - Main] Couldn't find process %s\n", VICTIM_SOFTWARE);
+			printf("[Debug - Main] Couldn't find process %s\n", victimSoftware);
 			printf("[Debug - Main] Is the victim running?\n");
 			return 1;
 		}
@@ -134,14 +134,6 @@ main(int argc, char *argv[])
 	/////////////////////////////////////////////////////////////////////////////////////
 	// The LISTENER Thread
 	/////////////////////////////////////////////////////////////////////////////////////
-
-	/* Winsock initialization */
-	WSADATA		wsd;
-	if (WSAStartup(MAKEWORD(2, 2), &wsd) != 0)
-	{
-		printf("[debug] Error: Can't load WinSock");
-		return 1;
-	}
 
 	/* Create the Communications Module thread */
 	HANDLE	hListenerThread;

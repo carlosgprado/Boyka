@@ -11,7 +11,6 @@
 #include <Windows.h>
 
 #define DLL_NAME "BoykaDLL.dll"
-#define VICTIM_SOFTWARE "DWRCC.exe"
 
 /////////////////////////////////////////////////////////////////////////////////////
 // Very important stuff
