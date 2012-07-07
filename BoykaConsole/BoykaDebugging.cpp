@@ -317,6 +317,10 @@ LogExceptionAccessViolation()
 	// TODO: Maybe return type could be something more complex
 	//		 than int. Some kind of structure? 
 
+	printf("**********************************\n");
+	printf("[debug] Access violation detected!\n");
+	printf("**********************************\n");
+
 	return 0;
 }
 

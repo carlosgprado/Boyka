@@ -16,8 +16,10 @@
 // Very important stuff
 // These two breakpoints define our execution (fuzzing) loop
 /////////////////////////////////////////////////////////////////////////////////////
-#define dwBeginLoopAddress	0x0040DAC0	// cgp_ArithmeticSender01
-#define dwExitLoopAddress	0x0040DC7A	// cgp_ArithmeticSender01+1ba
+#define dwBeginLoopAddress	0x004115C8
+#define dwExitLoopAddress	0x0041161A
+
+#define dwDetouredFunctionAddress	0x00411720
 
 /////////////////////////////////////////////////////////////////////////////////////
 // IPC related defines.

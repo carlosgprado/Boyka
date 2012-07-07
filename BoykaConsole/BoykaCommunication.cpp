@@ -6,6 +6,7 @@
 //////////////////////////////////////////////////////////////////////////////////////
 
 #include <winsock.h>
+#include <string.h>
 #include <stdio.h>
 #include "Boyka.h"
 
@@ -72,19 +73,6 @@ ListenerThread(LPVOID lpParam)
 	else
 		printf("[debug] Bound to 0.0.0.0:1337\n");
 
-	// SETSOCKOPTIONS
-	// I don't want recv() to block until something is received.
-	// Instead of this, a TIMEOUT will be set for the case no exception
-	// occurred on the server side (no feedback)
-	timeval tv;
-	tv.tv_usec = 500000;	// microseconds
-	
-	int sockOptRes = setsockopt(sServerListen, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(struct timeval));
-	if(sockOptRes == SOCKET_ERROR)
-		printf("[debug - setsockopt] Recv() Timeout couldn't be set.\n");
-	else
-		printf("[debug - setsockopt] Recv() Timeout set to %u microseconds.\n", tv.tv_usec);
-	
 
 	// LISTEN
 	if(listen(sServerListen, SOMAXCONN) == SOCKET_ERROR)
@@ -108,6 +96,20 @@ ListenerThread(LPVOID lpParam)
 		return 1;
 	}
 
+	// SETSOCKOPTIONS
+	// I don't want recv() to block until something is received.
+	// Instead of this, a TIMEOUT will be set for the case no exception
+	// occurred on the server side (no feedback)
+	timeval tv;
+	tv.tv_usec = 3000000;	// microseconds
+	
+	int sockOptRes = setsockopt(sClient, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(struct timeval));
+	if(sockOptRes == SOCKET_ERROR)
+		printf("[debug - setsockopt] Recv() Timeout couldn't be set.\n");
+	else
+		printf("[debug - setsockopt] Recv() Timeout set to %u microseconds.\n", tv.tv_usec);
+
+
 	// I don't need the server socket anymore
 	closesocket(sServerListen);
 
@@ -122,24 +124,37 @@ ListenerThread(LPVOID lpParam)
 
 			// Recv() is blocking, we will be within the critical section 
 			// (blocking the snapshot loop) until a TIMEOUT occurs
+			printf("[Debug] Expecting to RECV() something...\n");
 			iRecv = recv(sClient, szRecvBuffer, sizeof(szRecvBuffer), 0);
 			if (iRecv == SOCKET_ERROR)
 			{
-				printf("[debug] Error: Recv() failed: %ld\n", WSAGetLastError());
-				printf("iRecv: %d\n", iRecv);
-				DisplayError();
-				break;
-			}
+				int lastErrCode = WSAGetLastError();
+
+				if (lastErrCode != WSAETIMEDOUT)
+				{
+					printf("[debug] Error: Recv() failed: %ld\n", lastErrCode);
+					DisplayError();
+					break;
+				}
+				else
+				{
+					// It TIMED OUT, this is somehow expected
+					printf("[Debug] RECV() TIMED OUT\n");
+					LeaveCriticalSection(&boyka_cs);
+					Sleep(500);	// TODO: Possibly remove this
+					continue;
+				}
+			}	
+
 
 			// Append trailing 0x00 byte to the string.
-			if(iRecv < 0) iRecv = 0;
 			szRecvBuffer[iRecv] = '\0';
 			
 			// Sending back kind of an ACK
 			iSend = send(
 					sClient,
 					szACKBuffer,
-					sizeof(szACKBuffer),
+					strlen(szACKBuffer),
 					0
 					);
 
@@ -164,7 +179,7 @@ ListenerThread(LPVOID lpParam)
 			// Source: "Windows via C/C++", 5th edition
 			LeaveCriticalSection(&boyka_cs);
 			
-	} while(iRecv > 0);
+	} while(1);
 
 
 	// Cleanup
@@ -175,6 +190,7 @@ ListenerThread(LPVOID lpParam)
 }
 
 
+
 unsigned int
 ProcessIncomingData(char *szBuffer)
 {
@@ -183,7 +199,7 @@ ProcessIncomingData(char *szBuffer)
 	//	1) to log the last packet, in case it resulted in an exception
 	//	2) to restore the process state (send the next packet)
 
-	printf("[debug] ProcessIncomingData() called.\n");
+	printf("[debug] ProcessIncomingData() called with buffer: '%s'\n", szBuffer);
 
 	return BOYKA_PACKET_PROCESSED;
 }

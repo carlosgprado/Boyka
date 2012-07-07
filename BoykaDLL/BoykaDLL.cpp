@@ -17,13 +17,12 @@
 #undef UNICODE
 
 #include <cstdio>
-#include <winsock2.h>
-#include <ws2tcpip.h>
+#include <string.h>
 #include <Windows.h>
 #include <detours.h>
 #include <assert.h>
 #include <time.h>		// used by rand()
-#include "Fuzzing.h"
+#include "Fuzzing.h"	// Test case definitions
 #include <Boyka.h>		// always the last one
 
 
@@ -35,8 +34,8 @@
 // NOTE: This is something you will have to change every time...
 ////////////////////////////////////////////////////////////////////////////////////
 
-typedef int (*pArithmeticSender01)(char*, int, int); // function pointer declaration
-pArithmeticSender01 FuncToDetour = (pArithmeticSender01)(dwBeginLoopAddress); // initialization
+typedef int (*pDetouredFunction)(char*); // function pointer declaration
+pDetouredFunction FuncToDetour = (pDetouredFunction)(dwDetouredFunctionAddress); // initialization
 
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -49,44 +48,22 @@ pArithmeticSender01 FuncToDetour = (pArithmeticSender01)(dwBeginLoopAddress); //
 // depending on whether the function prolog has been executed yet or not...
 ////////////////////////////////////////////////////////////////////////////////////
 
-int WINAPI MyArithmeticSender01(char* buf, int len, int unknown)
+int WINAPI MyDetourFunction(char* buf)
 {
 	// We have total R/W access to the intercepted function's variables
 	// They start at ESP + 0x04, since we operate *before* the prolog 
 	// Therefore EBP hasn't been pushed nor switched yet
 	// (at the top of the stack there's only saved EIP)
+
 	CONTEXT context;
-	context.ContextFlags = CONTEXT_FULL;
 	HANDLE hProc = GetCurrentProcess();		// pseudo-handle (only valid within the thread)
-	DWORD pRead;
+	DWORD pRead = 0;
 	LPVOID testAddr;
 
 	memset(&context, 0, sizeof(CONTEXT));	// initialize with 0x00 bytes
+	context.ContextFlags = CONTEXT_FULL;
 
-	///////////////////////////////////////////////////////////////////
-	// Copy the test string into the victim memory space.
-	//
-	// I need to place the test string in our memory space
-	// so it'll still be there after detour returns.
-	///////////////////////////////////////////////////////////////////
-	char* test = GetFuzzStringCase();
-
-	testAddr = VirtualAlloc(
-			NULL,	// I don't care where
-			sizeof(test),
-			MEM_COMMIT | MEM_RESERVE,
-			PAGE_READWRITE);
-
-
-	WriteProcessMemory(
-			hProc,
-			(LPVOID)testAddr,
-			(LPVOID)test,
-			sizeof(test),
-			NULL);
-
-
-	///////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////
 	// NOTE: Neither GetThreadContext nor RtlCaptureContext worked.
 	// So this is an alternative way to get some of the CONTEXT
 	// On a related note: "Real men do it in assembler" :)
@@ -94,34 +71,71 @@ int WINAPI MyArithmeticSender01(char* buf, int len, int unknown)
 	__asm
 	{
 		call x
-		x: 	pop eax
-			add eax, 4				; GetPC trick
+		x: 	pop eax					; GetPC trick
 			mov context.Eip, eax	; EIP
-			mov context.Esp, esp	; ESP
-			mov context.Ebp, ebp	; EBP :)
+			mov context.Esp, esp	; ESP  :)
+			mov context.Ebp, ebp	; EBP
 	}
 
 
+	char* test = GetFuzzStringCase();
+
+	///////////////////////////////////////////////////////////////////
+	// Copy the test string into the victim memory space.
+	//
+	// I need to place the test string in our memory space
+	// so it'll still be there after detour returns.
+	///////////////////////////////////////////////////////////////////
+
+	printf("[debug] Execution Detoured. String Fuzz Case: %s\n", test);
+
+	testAddr = VirtualAlloc(
+			NULL,	// I don't care where
+			strlen(test),
+			MEM_COMMIT | MEM_RESERVE,
+			PAGE_READWRITE);
+
+	if(testAddr == NULL)
+		printf("[BoykaDLL - Detoured Function] Failed to VirtualAlloc()\n");
+		
+
+	int wrStatus = WriteProcessMemory(
+			hProc,
+			(LPVOID)testAddr,
+			(LPVOID)test,
+			strlen(test),
+			NULL);
+
+	if(wrStatus == 0)
+		printf("[BoykaDLL - Detoured Function] Failed to WriteProcessMemory()\n");
+		
+
 	ReadProcessMemory(
 			hProc,
-			(LPVOID)(context.Esp + 4),
+			(LPVOID)(context.Ebp + 8),
 			(LPVOID)&pRead,
 			4, // buffer *pointer*
 			NULL);
+			
 
+	printf("[debug] EBP is located at %08x\n", context.Ebp);
+	printf("[debug] EBP + 8 contains %08x\n", pRead);
+	printf("[debug] This points to %s\n", pRead);
+	
 
 	WriteProcessMemory(
 			hProc,
-			(LPVOID)(context.Esp + 4),
+			(LPVOID)(context.Ebp + 8),
 			(LPVOID)&testAddr,
 			4,
 			NULL);
 
-
+	// Cleanup
 	CloseHandle(hProc);
 
+
 	// It transfers execution back to the original point.
-	return FuncToDetour(buf, len, unknown);
+	return FuncToDetour(buf);
 }
 
 
@@ -141,7 +155,7 @@ BOOL APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 			DisableThreadLibraryCalls(hDLL);
 			DetourTransactionBegin();
 			DetourUpdateThread(GetCurrentThread());
-			DetourAttach(&(PVOID&)FuncToDetour, MyArithmeticSender01); // actual detour fn_a -> fn_b
+			DetourAttach(&(PVOID&)FuncToDetour, MyDetourFunction); // actual detour fn_a -> fn_b
 			if(DetourTransactionCommit() == NO_ERROR)
 				OutputDebugString("send() detoured successfully");				
 			break;
@@ -151,7 +165,7 @@ BOOL APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 			/* Microsoft DETOURS stuff */
 			DetourTransactionBegin();
 			DetourUpdateThread(GetCurrentThread());
-			DetourDetach(&(PVOID&)FuncToDetour, MyArithmeticSender01); // removing the detour
+			DetourDetach(&(PVOID&)FuncToDetour, MyDetourFunction); // removing the detour
 			if(DetourTransactionCommit() == NO_ERROR)
 				OutputDebugString("send() detour removed");
 			break;
@@ -172,7 +186,7 @@ BOOL APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 // TODO: Change this to something more... sophisticated :)
 // 		 Some code reusing would be nice as well ;)
 //
-// NOTE: The XXXFuzzCases are defined in Boyka.h
+// NOTE: The XXXFuzzCases are defined in Fuzzing.h
 ///////////////////////////////////////////////////////////////////
 
 char*
