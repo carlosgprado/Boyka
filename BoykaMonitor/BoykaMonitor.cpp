@@ -119,7 +119,7 @@ main(int argc, char *argv[])
 	
 
 	// Let's send a test string
-	char *sendbuf = "Hi there!";
+	char *sendbuf = "Connection to console established!";
 	int iResSend = send(sockMon, sendbuf, (int)strlen(sendbuf), 0);
 	if(iResSend == SOCKET_ERROR)
 	{

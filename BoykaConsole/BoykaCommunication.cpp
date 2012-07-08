@@ -100,14 +100,13 @@ ListenerThread(LPVOID lpParam)
 	// I don't want recv() to block until something is received.
 	// Instead of this, a TIMEOUT will be set for the case no exception
 	// occurred on the server side (no feedback)
-	timeval tv;
-	tv.tv_usec = 3000000;	// microseconds
+	int sTimeout = CONSOLE_SOCK_TIMEOUT;	// milliseconds
 	
-	int sockOptRes = setsockopt(sClient, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(struct timeval));
+	int sockOptRes = setsockopt(sClient, SOL_SOCKET, SO_RCVTIMEO, (const char *)&sTimeout, sizeof(int));
 	if(sockOptRes == SOCKET_ERROR)
 		printf("[debug - setsockopt] Recv() Timeout couldn't be set.\n");
 	else
-		printf("[debug - setsockopt] Recv() Timeout set to %u microseconds.\n", tv.tv_usec);
+		printf("[debug - setsockopt] Recv() Timeout set to %u milliseconds.\n", sTimeout);
 
 
 	// I don't need the server socket anymore
@@ -121,6 +120,7 @@ ListenerThread(LPVOID lpParam)
 	do {
 			// --------- Thread Synchronization. Start blocking. ---------
 			EnterCriticalSection(&boyka_cs);
+			printf("[Listener Thread] Entered the critical section\n");
 
 			// Recv() is blocking, we will be within the critical section 
 			// (blocking the snapshot loop) until a TIMEOUT occurs
@@ -141,7 +141,7 @@ ListenerThread(LPVOID lpParam)
 					// It TIMED OUT, this is somehow expected
 					printf("[Debug] RECV() TIMED OUT\n");
 					LeaveCriticalSection(&boyka_cs);
-					Sleep(500);	// TODO: Possibly remove this
+					//Sleep(500);	// TODO: Possibly remove this
 					continue;
 				}
 			}	

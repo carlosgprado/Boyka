@@ -82,7 +82,7 @@ ConsoleDebuggingThread(LPVOID lpParam)
 
 				if(de.u.Exception.ExceptionRecord.ExceptionAddress == (PVOID)dwExitLoopAddress)
 					{
-						// This will execute only when the CS is signaled
+						// This will execute only if the CS is signaled
 						EnterCriticalSection(&boyka_cs);
 
 						printf("[Debug - DebugLoop] Hit RestoreProcessState Breakpoint!\n");
@@ -94,8 +94,9 @@ ConsoleDebuggingThread(LPVOID lpParam)
 					}
 				else if(de.u.Exception.ExceptionRecord.ExceptionAddress == (PVOID)dwBeginLoopAddress)
 					{
-						// NOTE: The saved EIP will be the one of the next instruction. Nevertheless it could be that
-						// after returning the function is called again from another one. Therefore the RestoreBreakpoint()
+						// NOTE 1: This is going to be called ONLY ONCE
+						// NOTE 2: The saved EIP will be the one of the next instruction. Nevertheless it could be that
+						// after returning, the function is called again from another one. Therefore the RestoreBreakpoint()
 						printf("[Debug - DebugLoop] Hit SaveProcessState Breakpoint!\n");
 						RestoreBreakpoint(hProcess, de.dwThreadId, (DWORD)de.u.Exception.ExceptionRecord.ExceptionAddress, originalByteBegin);
 						dwContinueStatus = SaveProcessState(de.dwProcessId);

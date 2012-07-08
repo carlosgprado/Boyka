@@ -158,7 +158,7 @@ main(int argc, char *argv[])
 
 	// Let's give some time to the listener thread, so it can 
 	// EnterCriticalSection for the first time. Rudimentary, I know :)
-	Sleep(1000);	// One second
+	Sleep(3000);	// One second
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// The DEBUGGING Thread
