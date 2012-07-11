@@ -8,10 +8,16 @@
 /////////////////////////////////////////////////////////////////////////////////////
 
 #undef UNICODE
+
+#include <Windows.h>
 #include <vector>
 #include <string>
-#include <Windows.h>
+#include <DbgHelp.h>
+#include <time.h>
 #include "Boyka.h"
+
+
+#pragma comment(lib, "dbghelp.lib")
 
 
 extern CRITICAL_SECTION	boyka_cs;
@@ -134,6 +140,7 @@ ConsoleDebuggingThread(LPVOID lpParam)
 
 
 /////////////////////////////////////////////////////////////////////////////////////
+// NOTE: CURRENTLY NOT IN USE - IMPLEMENTED IN BoykaMonitor WITHOUT THREADS
 // Boyka Monitor Debugging Thread.
 //
 // This code debugs the server and detects any exception (AV, etc.)
@@ -176,14 +183,14 @@ MonitorDebuggingThread(LPVOID lpParam)
 			case EXCEPTION_ACCESS_VIOLATION:
 				// TODO: Maybe consolidate all this logging callbacks using OOP:
 				//		 inherit from Exception Logging object or something like that
-				lav = LogExceptionAccessViolation();
+				//lav = LogExceptionAccessViolation();
 				//CommunicateToConsole(lav);
 
 				dwContinueStatus = DBG_CONTINUE;
 				break;
 
 			case EXCEPTION_STACK_OVERFLOW:
-				lso = LogExceptionStackOverflow();
+				//lso = LogExceptionStackOverflow();
 				//CommunicateToConsole(lso);
 
 				dwContinueStatus = DBG_CONTINUE;
@@ -313,7 +320,7 @@ RestoreBreakpoint(HANDLE hProcess, DWORD dwThreadId, DWORD dwAddress, BYTE origi
 // This functions are dummy right now. Elaborate on them.
 /////////////////////////////////////////////////////////////////////////////////////
 unsigned int
-LogExceptionAccessViolation()
+LogExceptionAccessViolation(BOYKAPROCESSINFO bpi)
 {
 	// TODO: Maybe return type could be something more complex
 	//		 than int. Some kind of structure? 
@@ -322,14 +329,14 @@ LogExceptionAccessViolation()
 	printf("[debug] Access violation detected!\n");
 	printf("**********************************\n");
 
+
 	return 0;
 }
 
 
 unsigned int
-LogExceptionStackOverflow()
+LogExceptionStackOverflow(BOYKAPROCESSINFO bpi)
 {
-
 	return 0;
 }
 
@@ -337,7 +344,7 @@ LogExceptionStackOverflow()
 int
 CommunicateToConsole(SOCKET s, char *msg)
 {
-	int bytesSent = send(s, msg, sizeof(msg), 0);
+	int bytesSent = send(s, msg, strlen(msg), 0);
 
 	// TODO: Which margin of error am I going to permit?
 	if(bytesSent == SOCKET_ERROR)
@@ -347,4 +354,102 @@ CommunicateToConsole(SOCKET s, char *msg)
 	}
 
 	return bytesSent;
+}
+
+
+int WriteMiniDumpFile(DEBUG_EVENT *pDe)
+{
+	HANDLE hProcess;
+	HMODULE hDbgHelp = LoadLibrary("DBGHELP.DLL");
+	FARPROC MiniDumpAddr = GetProcAddress(hDbgHelp, "MiniDumpWriteDump");
+
+	// Check if this is even available.
+	if(MiniDumpAddr != NULL)
+	{
+		HANDLE hThread;
+		CONTEXT ctx;
+		memset(&ctx, 0, sizeof(ctx));
+		ctx.ContextFlags = CONTEXT_FULL;
+
+		hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pDe->dwProcessId);
+		hThread = OpenThread(THREAD_ALL_ACCESS, FALSE, pDe->dwThreadId);
+		GetThreadContext(hThread, &ctx);
+
+		EXCEPTION_POINTERS ep;
+
+		memset(&ep, 0 , sizeof(ep));
+
+		ep.ContextRecord = &ctx;
+		ep.ExceptionRecord = &pDe->u.Exception.ExceptionRecord;
+
+		MINIDUMP_EXCEPTION_INFORMATION mei;
+
+		memset(&mei, 0, sizeof(mei));
+
+		mei.ThreadId = pDe->dwThreadId;
+		mei.ExceptionPointers = &ep;
+		mei.ExceptionPointers->ContextRecord = &ctx;
+		mei.ClientPointers = FALSE; // TODO: TRUE?
+
+		char sDumpPath[MAX_PATH + 1];
+
+		time_t tNow = time(NULL);
+		struct tm *pTm = localtime(&tNow);
+
+		// Crash dump filename
+		sprintf(sDumpPath, "CrashDump-%02d%02d%04d-%02d%02d%02d.dmp",
+			pTm->tm_mday,
+			pTm->tm_mon,
+			pTm->tm_year,
+			pTm->tm_hour,
+			pTm->tm_min,
+			pTm->tm_sec
+			);
+
+
+		HANDLE hDumpFile = CreateFile(sDumpPath, GENERIC_WRITE, 0,
+						NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+		if(hDumpFile != INVALID_HANDLE_VALUE)
+		{
+			BOOL sWrite = MiniDumpWriteDump(hProcess, 
+							  pDe->dwProcessId,
+							  hDumpFile, 
+							  MiniDumpNormal,
+							  &mei,		// TODO: Enhance the dump contents 
+							  NULL,		// Research this parameters
+							  NULL		// and set the appropriate values
+							  );
+
+			if(!sWrite)
+			{
+				printf("[Debug] MiniDumpWriteDump Failed\n");
+				DisplayError();
+			}
+			else
+				printf("[debug] MiniDump written to %s\n", sDumpPath);
+
+			CloseHandle(hDumpFile);
+		}
+	} else {
+		printf("[debug] DBGHELP.DLL not found. It's not possible to create a Minidump\n");
+		/* Implement here an alternative? */
+	}
+
+	return 0;
+}
+
+
+void gen_random(char *s, const int len) {
+	// ripped from stackoverflow :)
+    static const char alphanum[] =
+        "0123456789"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz";
+
+    for (int i = 0; i < len; ++i) {
+        s[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
+    }
+
+    s[len] = 0;
 }

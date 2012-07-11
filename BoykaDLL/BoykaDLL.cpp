@@ -16,9 +16,9 @@
 
 #undef UNICODE
 
+#include <Windows.h>
 #include <cstdio>
 #include <string.h>
-#include <Windows.h>
 #include <detours.h>
 #include <assert.h>
 #include <time.h>		// used by rand()

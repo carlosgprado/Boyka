@@ -9,9 +9,10 @@
 /////////////////////////////////////////////////////////////////////////////////////
 
 #undef UNICODE
+
+#include <Windows.h>
 #include <vector>
 #include <string>
-#include <Windows.h>
 #include <TlHelp32.h>
 #include "Boyka.h"
 

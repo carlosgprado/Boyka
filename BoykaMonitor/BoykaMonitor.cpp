@@ -8,9 +8,10 @@
 /////////////////////////////////////////////////////////////////////////////////////
 
 #undef UNICODE
+
+#include <Windows.h>
 #include <stdio.h>
 #include <string.h>
-#include <Windows.h>
 #include <WinSock.h>
 #include <Boyka.h>
 
@@ -162,15 +163,19 @@ main(int argc, char *argv[])
 			case EXCEPTION_ACCESS_VIOLATION:
 				// TODO: Maybe consolidate all this logging callbacks using OOP:
 				//		 inherit from Exception Logging object or something like that
-				lav = LogExceptionAccessViolation();
+				lav = LogExceptionAccessViolation(bpiMon);
 				CommunicateToConsole(sockMon, msgAV);
+				WriteMiniDumpFile(&de);
+				/* Just for now, exit after this. */
+				ExitProcess(1);
 
 				dwContinueStatus = DBG_CONTINUE;
 				break;
 
 			case EXCEPTION_STACK_OVERFLOW:
-				lso = LogExceptionStackOverflow();
+				lso = LogExceptionStackOverflow(bpiMon);
 				CommunicateToConsole(sockMon, msgSO);
+				WriteMiniDumpFile(&de);
 
 				dwContinueStatus = DBG_CONTINUE;
 				break;
@@ -181,7 +186,7 @@ main(int argc, char *argv[])
 			}
 			break;
 
-		// We are only interested in exceptions. The rest aren't processed (for now)
+		// I'm only interested in exceptions. The rest won't be processed (for now)
 		default:
 			dwContinueStatus = DBG_EXCEPTION_NOT_HANDLED;
 			break;

@@ -31,8 +31,9 @@
 // Miscelaneous.
 /////////////////////////////////////////////////////////////////////////////////////
 #define Use_wprintf_Instead_Of_printf printf	// don't ask. Some dumb error relating CeLib.h
-#define BOYKA_BUFLEN 1024	// 1K would do :)
+#define BOYKA_BUFLEN 1024	// 1K would do. What can go wrong? :)
 #define BOYKA_PACKET_PROCESSED	0
+#define DUMP_SUFFIX_LEN 32
 
 /////////////////////////////////////////////////////////////////////////////////////
 // Custom complex variables.
@@ -84,10 +85,15 @@ BOOL SetPrivilege(HANDLE, LPCTSTR, BOOL); // I love MSDN :)
 void DisplayError(void);
 char* GetFuzzStringCase(void);
 
-unsigned int LogExceptionAccessViolation(void);
-unsigned int LogExceptionStackOverflow(void);
+unsigned int LogExceptionAccessViolation(BOYKAPROCESSINFO);
+unsigned int LogExceptionStackOverflow(BOYKAPROCESSINFO);
 
 int CommunicateToConsole(SOCKET, char *);
+
+int WriteMiniDumpFile(DEBUG_EVENT *);
+void gen_random(char*, const int);
+
+
 
 
 #endif	// _BOYKA_H
