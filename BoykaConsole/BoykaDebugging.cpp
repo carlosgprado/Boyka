@@ -382,6 +382,12 @@ int WriteMiniDumpFile(DEBUG_EVENT *pDe)
 		ep.ContextRecord = &ctx;
 		ep.ExceptionRecord = &pDe->u.Exception.ExceptionRecord;
 
+		// Let's dump some useful information to the Minidump
+		MINIDUMP_TYPE mdt = (MINIDUMP_TYPE) (MiniDumpWithDataSegs | 
+		                                     MiniDumpWithHandleData |
+											 MiniDumpWithProcessThreadData |
+											 MiniDumpWithPrivateReadWriteMemory);
+
 		MINIDUMP_EXCEPTION_INFORMATION mei;
 
 		memset(&mei, 0, sizeof(mei));
@@ -415,7 +421,7 @@ int WriteMiniDumpFile(DEBUG_EVENT *pDe)
 			BOOL sWrite = MiniDumpWriteDump(hProcess, 
 							  pDe->dwProcessId,
 							  hDumpFile, 
-							  MiniDumpNormal,
+							  mdt,
 							  &mei,		// TODO: Enhance the dump contents 
 							  NULL,		// Research this parameters
 							  NULL		// and set the appropriate values

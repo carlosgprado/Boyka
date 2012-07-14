@@ -76,6 +76,21 @@ main(int argc, char *argv[])
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Here starts the action :)
 	/////////////////////////////////////////////////////////////////////////////////////
+	
+	// If I'm attaching to the process at this point, I guess this is a good state 
+	// to go back if everything gets all fucked up (access violation, for example)
+	int iSaveProc = SaveProcessState(bpiMon.Pid);
+	if(iSaveProc != DBG_CONTINUE)
+	{
+		printf("[debug] Unable to snapshot the program state :(\n");
+		printf("[debug] This is FATAL. Aborting...\n");
+		return(1);
+	}
+	else 
+	{
+		printf("[debug] Saved process state :)\n");
+	}
+
 
 	/* Winsock initialization */
 	WSADATA		wsd;
@@ -166,8 +181,7 @@ main(int argc, char *argv[])
 				lav = LogExceptionAccessViolation(bpiMon);
 				CommunicateToConsole(sockMon, msgAV);
 				WriteMiniDumpFile(&de);
-				/* Just for now, exit after this. */
-				ExitProcess(1);
+				RestoreProcessState(bpiMon.Pid);
 
 				dwContinueStatus = DBG_CONTINUE;
 				break;
@@ -176,6 +190,7 @@ main(int argc, char *argv[])
 				lso = LogExceptionStackOverflow(bpiMon);
 				CommunicateToConsole(sockMon, msgSO);
 				WriteMiniDumpFile(&de);
+				RestoreProcessState(bpiMon.Pid);
 
 				dwContinueStatus = DBG_CONTINUE;
 				break;
