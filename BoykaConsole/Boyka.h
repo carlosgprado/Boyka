@@ -83,7 +83,6 @@ unsigned int ProcessIncomingData(char *);
 
 BOOL SetPrivilege(HANDLE, LPCTSTR, BOOL); // I love MSDN :)
 void DisplayError(void);
-char* GetFuzzStringCase(void);
 
 unsigned int LogExceptionAccessViolation(BOYKAPROCESSINFO);
 unsigned int LogExceptionStackOverflow(BOYKAPROCESSINFO);

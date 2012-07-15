@@ -78,7 +78,9 @@ int WINAPI MyDetourFunction(char* buf)
 	}
 
 
+	// The fuzzing test cases are generated here
 	char* test = GetFuzzStringCase();
+
 
 	///////////////////////////////////////////////////////////////////
 	// Copy the test string into the victim memory space.
@@ -117,11 +119,11 @@ int WINAPI MyDetourFunction(char* buf)
 			4, // buffer *pointer*
 			NULL);
 			
-
+	/* Just some debug info
 	printf("[debug] EBP is located at %08x\n", context.Ebp);
 	printf("[debug] EBP + 8 contains %08x\n", pRead);
 	printf("[debug] This points to %s\n", pRead);
-	
+	*/
 
 	WriteProcessMemory(
 			hProc,
@@ -197,10 +199,10 @@ GetFuzzStringCase()
 	srand(time(NULL));	// initialize random seed
 	arrayLength = sizeof(StringFuzzCases)/sizeof(StringFuzzCases[0]);
 	idx = rand() % arrayLength;
+	printf("[BoykaDLL - GetFuzzStringCase] index %u selected\n", idx);
 
 	return StringFuzzCases[idx];
 }
-
 
 
 int
@@ -213,4 +215,48 @@ GetFuzzIntegerCase()
 	idx = rand() % arrayLength;
 
 	return IntegerFuzzCases[idx];
+}
+
+
+int 
+RandomInteger()
+{
+	int i;
+
+	srand(time(NULL));  // initialize random seed
+	i = ((double)rand() / (RAND_MAX + 1)) * UINT_MAX;
+
+	return i;
+}
+
+
+char *
+RepeatedToken(char *t, unsigned int n, BOOL nullTerminate)
+{
+	// NOTE: This does NOT null terminate the buffer
+	// TODO: Remember to free this afterwars 
+	// to prevent a memory leak...
+	char *repBuffer, *idx;
+	unsigned int len = 0, s = 0;
+
+	len = strlen(t) * n;
+	// Null terminate implies I reserve one byte more that 
+	// won't be overwritten and stays (0x00)
+	if(nullTerminate)
+		len++;
+
+	repBuffer = (char *)malloc(len);
+	memset(repBuffer, 0x00, sizeof(repBuffer));
+
+	idx = repBuffer;
+
+	while(s < n)
+	{
+		strcpy(idx, t);
+		s++;
+		idx += strlen(t);
+	}
+
+
+	return repBuffer;
 }
