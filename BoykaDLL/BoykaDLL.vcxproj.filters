@@ -23,5 +23,13 @@
     <ClInclude Include="Fuzzing.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\BoykaConsole\Boyka.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="BoykaExports.def">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

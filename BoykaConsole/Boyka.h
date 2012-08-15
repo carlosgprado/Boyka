@@ -11,15 +11,18 @@
 #include <Windows.h>
 
 #define DLL_NAME "BoykaDLL.dll"
+#define DllExport	__declspec(dllexport) // for readability
 
 /////////////////////////////////////////////////////////////////////////////////////
-// Very important stuff
+// VERY IMPORTANT STUFF
 // These two breakpoints define our execution (fuzzing) loop
 /////////////////////////////////////////////////////////////////////////////////////
-#define dwBeginLoopAddress	0x004115C8
-#define dwExitLoopAddress	0x00411627
+#define dwBeginLoopAddress	0x0042860E	// Begin Loop
+#define dwExitLoopAddress	0x00428634	// End Loop
 
-#define dwDetouredFunctionAddress	0x00411720
+// DON'T FORGET TO CHANGE THE PROTOTYPE and 
+// CALL CONVENTION on BoykaDLL.cpp !!!!
+#define dwDetouredFunctionAddress	0x00428900
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // Console socket timeout (milliseconds.)
@@ -36,7 +39,13 @@
 #define DUMP_SUFFIX_LEN 32
 
 /////////////////////////////////////////////////////////////////////////////////////
-// Custom complex variables.
+// BoykaDLL exported functions
+/////////////////////////////////////////////////////////////////////////////////////
+DllExport char* currentFuzzStringCase(void);
+DllExport int currentFuzzIntegerCase(void);
+
+/////////////////////////////////////////////////////////////////////////////////////
+// Custom (complex) variables.
 /////////////////////////////////////////////////////////////////////////////////////
 
 // Virtual Memory Information Object
@@ -61,6 +70,15 @@ typedef struct
 	DWORD	Pid;
 	HANDLE	hProcess;
 } BOYKAPROCESSINFO;
+
+// Information about the current test case
+typedef struct
+{
+	char*	szStringCase;
+	int		iIntegerCase;	
+	// Placeholder for extending this
+} BOYKATESTCASE;
+
 
 /////////////////////////////////////////////////////////////////////////////////////
 // Custom function declarations.
@@ -91,7 +109,6 @@ int CommunicateToConsole(SOCKET, char *);
 
 int WriteMiniDumpFile(DEBUG_EVENT *);
 void gen_random(char*, const int);
-
 
 
 

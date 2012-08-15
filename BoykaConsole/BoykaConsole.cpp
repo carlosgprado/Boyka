@@ -63,7 +63,7 @@ main(int argc, char *argv[])
 			return 1;
 		}
 
-	printf("[Debug - PrivEsc] Setting SeDebugPrivilege on this process...\n");
+	//printf("[Debug - PrivEsc] Setting SeDebugPrivilege on this process...\n");
 
 	if(SetPrivilege(hThisProcess, SE_DEBUG_NAME, TRUE))
 		printf("[Debug - PrivEsc] Successfully set SeDebugPrivilege :)\n");
@@ -89,8 +89,7 @@ main(int argc, char *argv[])
 	GetCurrentDirectory(MAX_PATH, DirPath);
 	sprintf_s(FullPath, MAX_PATH, "%s\\%s", DirPath, DLL_NAME);
 
-	printf("[Debug - DLL inject] Proceding with DLL injection now...\n");
-
+	//printf("[Debug - DLL inject] Proceding with DLL injection now...\n");
 
 	/////////////////////////////////////////////////////////////////////////////
 	// DLL injection sexiness starts here
@@ -108,8 +107,8 @@ main(int argc, char *argv[])
 			PathStringAlloc, NULL, NULL); // new thread, execs LoadLibraryA("PathStringAlloc").
 
 	if(hRemoteThread != NULL) {
-		printf("[Debug - DLL inject] Remote Thread created.\n");
-		printf("[Debug - DLL inject] DLL %s injected.\n", FullPath);
+		//printf("[Debug - DLL inject] Remote Thread created.\n");
+		printf("[Debug - DLL inject] >o.O<  DLL %s injected.\n", FullPath);
 	} else {
 		printf("[Debug - DLL inject] Error! Remote Thread couldn't be created.\n");
 		DisplayError();
@@ -121,13 +120,6 @@ main(int argc, char *argv[])
 	delete [] FullPath;
 
 
-	if(bpiCon.Pid == 0)
-		{
-			printf("[Debug - Main] Couldn't find process %s\n", victimSoftware);
-			printf("[Debug - Main] Is the victim running?\n");
-			return 1;
-		}
-
 	// Initialize CriticalSection (for thread synchronization)
 	InitializeCriticalSection(&boyka_cs);
 
@@ -137,6 +129,7 @@ main(int argc, char *argv[])
 	/////////////////////////////////////////////////////////////////////////////////////
 
 	/* Create the Communications Module thread */
+	
 	HANDLE	hListenerThread;
 	DWORD	dwListenerThread;
 	hListenerThread = CreateThread(
@@ -159,11 +152,12 @@ main(int argc, char *argv[])
 
 	// Let's give some time to the listener thread, so it can 
 	// EnterCriticalSection for the first time. Rudimentary, I know :)
-	Sleep(3000);	// One second
-
+	Sleep(3000);	// Three seconds
+	
 	/////////////////////////////////////////////////////////////////////////////////////
 	// The DEBUGGING Thread
 	/////////////////////////////////////////////////////////////////////////////////////
+	
 	HANDLE	hConsoleDebuggingThread;
 	DWORD	dwConsoleDebuggingThread;
 
@@ -194,6 +188,8 @@ main(int argc, char *argv[])
 
 	WaitForMultipleObjects(2, hTreads, TRUE, INFINITE);
 
+	
+	// WaitForSingleObject(hListenerThread, INFINITE);
 
 	// Cleanup
 	DeleteCriticalSection(&boyka_cs);

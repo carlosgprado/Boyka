@@ -97,7 +97,7 @@ SaveProcessState(int pid)
 			threadContext.ContextFlags = CONTEXT_ALL;
 			GetThreadContext(threadSnapshot[i].thHandle, &threadContext);
 			threadSnapshot[i].thContext = threadContext;
-			printf("[Debug - Save Proc] Context for Thread ID %u saved\n", threadSnapshot[i].th32ThreadID);
+			//printf("[Debug - Save Proc] Context for Thread ID %u saved\n", threadSnapshot[i].th32ThreadID);
 		}
 
 
@@ -121,8 +121,9 @@ SaveProcessState(int pid)
 
 	// Retrieving some system info for later
 	GetSystemInfo(&si);
+	unsigned int MaxSavedAddress = (unsigned int)si.lpMaximumApplicationAddress;
 
-	while(cursor < (unsigned int)si.lpMaximumApplicationAddress)
+	while(cursor < MaxSavedAddress)
 		{
 			VMOBJECT mem;
 
@@ -162,7 +163,7 @@ SaveProcessState(int pid)
 					cursor += mem.mbi.RegionSize;
 					continue;
 				}
-
+			
 			// If all checks have resulted OK, let's save the memory region.
 			// First reserve some place to save it.
 			mem.data = VirtualAlloc(
@@ -306,7 +307,7 @@ RestoreProcessState(int pid)
 									DisplayError();
 								}
 							else {
-									printf("[Debug - Restore Proc] Restored Context for thread ID %u.\n", threadRestore[i].th32ThreadID);
+									//printf("[Debug - Restore Proc] Restored Context for thread ID %u.\n", threadRestore[i].th32ThreadID);
 							}
 							// TODO: Remove common values from both vectors ?
 						}
@@ -336,21 +337,21 @@ RestoreProcessState(int pid)
 			ExitProcess(1);
 		}
 	else {
-		printf("[Debug - Restore Proc] Got process handle (ALL ACCESS)\n");
+		//printf("[Debug - Restore Proc] Got process handle (ALL ACCESS)\n");
 	}
 
 	for (unsigned int i=0; i < memorySnapshot.size(); i++)
 		{
-			BOOL bRestoredMem = WriteProcessMemory(hProcess,
+			try{
+				WriteProcessMemory(hProcess,
 					memorySnapshot[i].mbi.BaseAddress,
 					memorySnapshot[i].data,
 					memorySnapshot[i].mbi.RegionSize,
 					NULL
 					);
-
-			if(bRestoredMem == FALSE)
-				{
-					printf("[Debug - Restore Proc] Error restoring memory block.\n");
+			}
+			catch(int e){
+					printf("[Debug - Restore Proc] Error restoring memory block at %08x.\n", memorySnapshot[i].mbi.BaseAddress);
 					DisplayError();
 				}
 		}
@@ -454,8 +455,7 @@ FindProcessByName(char *szExeName)
 				strncpy(bpi.szExeName, pe32.szExeFile, sizeof(pe32.szExeFile));
 				bpi.Pid = pe32.th32ProcessID;
 
-				printf("[Debug - FindProcessByName] Found %s\n", bpi.szExeName);
-				printf("[Debug - FindProcessByName] PID: %d\n", bpi.Pid);
+				printf("[Debug - FindProcessByName] Found %s [%d]\n", bpi.szExeName, bpi.Pid);
 
 
 				if((bpi.hProcess = OpenProcess(PROCESS_ALL_ACCESS,
@@ -466,8 +466,8 @@ FindProcessByName(char *szExeName)
 						printf("ABORTING.");
 						ExitProcess(1);
 					}
-				else
-					printf("[Debug - FindProcessByName] Got an ALL_ACCESS handle to process.\n");
+				//else
+				//	printf("[Debug - FindProcessByName] Got an ALL_ACCESS handle to process.\n");
 
 
 			} // if strcmp... closing bracket

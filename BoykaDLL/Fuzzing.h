@@ -12,11 +12,11 @@
 /////////////////////////////////////////////////////////////////////////////////////
 // Generator functions prototypes.
 /////////////////////////////////////////////////////////////////////////////////////
-
 char*	GetFuzzStringCase(void);
 int		GetFuzzIntegerCase(void);
 int		RandomInteger(void);
 char *	RepeatedToken(char *, unsigned int, BOOL);
+
 
 /////////////////////////////////////////////////////////////////////////////////////
 // Fuzz Test Cases.
@@ -24,8 +24,8 @@ char *	RepeatedToken(char *, unsigned int, BOOL);
 
 char* StringFuzzCases[] = {
 	/* strings ripped from sulley */
-	// elaborate this: strcat("/.:/", RepeatedToken("A", 5000, TRUE)),
-	// elaborate this: strcat("/.../", RepeatedToken("A", 5000, TRUE)),
+	// elaborate on this: strcat("/.:/", RepeatedToken("A", 5000, TRUE)),
+	// elaborate on this: strcat("/.../", RepeatedToken("A", 5000, TRUE)),
 	"/.../.../.../.../.../.../.../.../.../.../",
 	"/../../../../../../../../../../../../etc/passwd",
 	"/../../../../../../../../../../../../boot.ini",
@@ -113,10 +113,14 @@ char* StringFuzzCases[] = {
 
 
 int IntegerFuzzCases[] = {
-	0x00,
-	0x000000FF, 0x0000007F,
-	0x0000FFFF, 0x00007FFF,
-	0xFFFFFFFF, 0x7FFFFFFF
+	512, 1024, 1500, 2048, 2500,
+	3000, 3500, 4096, 5000, 6000,
+	8192, 10000, 12000, 14000,
+	16384, 18000, 20000, 22000,
+	//0x00, 0x10, 0x1000,
+	//0x000000FF, 0x0000007F, 0x100,
+	//0x0000FFFF, 0x00007FFF,
+	//0xFFFFFFFF, 0x7FFFFFFF
 	};
 
 

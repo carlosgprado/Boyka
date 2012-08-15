@@ -1,0 +1,5 @@
+LIBRARY BoykaDLL
+DESCRIPTION	"define the functions exported by our dll"
+EXPORTS
+	currentFuzzStringCase	@1
+	currentFuzzIntegerCase	@2

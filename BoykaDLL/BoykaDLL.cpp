@@ -13,7 +13,6 @@
 #pragma comment(lib, "ws2_32.lib")
 
 
-
 #undef UNICODE
 
 #include <Windows.h>
@@ -25,122 +24,136 @@
 #include "Fuzzing.h"	// Test case definitions
 #include <Boyka.h>		// always the last one
 
+BOOL WithinLoopFlag = TRUE;	// Work on this approach
 
-////////////////////////////////////////////////////////////////////////////////////
+BOYKATESTCASE testCase = {NULL, 0};
+
+////////////////////////////////////////////////////////////////////////////////////////////
 // Prototype for a function pointer to the "real" function.
 //
-// The typedef "declares" a FUNCTION POINTER with these
-// specific return value and arguments
+// The typedef "declares" a FUNCTION POINTER with the specific return value and arguments.
+// 
+// Don't forget to specify the calling convetion as well
 // NOTE: This is something you will have to change every time...
+////////////////////////////////////////////////////////////////////////////////////////////
+typedef char* (*pDetouredFunction)(char*, char*, unsigned int); // pointer to function with argument char*,... and return char*
+pDetouredFunction detFunc = (pDetouredFunction)(dwDetouredFunctionAddress); // initialization by address
+typedef void (*pMyFree)(void *); // pointer to function with argument void* and no return
+pMyFree detFree = (pMyFree)free; // initialization
+typedef BOOL (*pMyCloseHandle)(HANDLE); // ...
+pMyCloseHandle detCloseHandle = (pMyCloseHandle)CloseHandle;
+// In C++ the preferred method is to return from the thread, also this won't work...
+// TODO: Add TerminateThread as well?
+typedef BOOL (*pMyFreeLibrary)(HMODULE);
+pMyFreeLibrary detFreeLibrary = (pMyFreeLibrary)FreeLibrary;
+typedef HGLOBAL (*pMyGlobalFree)(HGLOBAL);
+pMyGlobalFree detGlobalFree = (pMyGlobalFree)GlobalFree;
+typedef HLOCAL (*pMyLocalFree)(HLOCAL);
+pMyLocalFree detLocalFree = (pMyLocalFree)LocalFree;
+typedef BOOL (*pMyVirtualFree)(LPVOID, SIZE_T, DWORD);
+pMyVirtualFree detVirtualFree = (pMyVirtualFree)VirtualFree;
+typedef BOOL (*pMyHeapFree)(HANDLE, DWORD, LPVOID);
+pMyHeapFree detHeapFree = (pMyHeapFree)HeapFree;
+typedef BOOL (*pMyHeapDestroy)(HANDLE);
+pMyHeapDestroy detHeapDestroy = (pMyHeapDestroy)HeapDestroy;
+
+
+
+
 ////////////////////////////////////////////////////////////////////////////////////
-
-typedef int (*pDetouredFunction)(char*); // function pointer declaration
-pDetouredFunction FuncToDetour = (pDetouredFunction)(dwDetouredFunctionAddress); // initialization
-
-
-////////////////////////////////////////////////////////////////////////////////////
-// The DETOUR function
+// The DETOUR functions
 //
 // This will be executed everytime the {detoured, original, real} function 
 // gets hit. In our case overwrites the {detoured, original, real} arguments.
-//
-// NOTE: you may need to modify the way you locate the arguments on the stack,
-// depending on whether the function prolog has been executed yet or not...
 ////////////////////////////////////////////////////////////////////////////////////
-
-int WINAPI MyDetourFunction(char* buf)
+BOOL WINAPI MyFreeLibrary(HMODULE hModule)
 {
-	// We have total R/W access to the intercepted function's variables
-	// They start at ESP + 0x04, since we operate *before* the prolog 
-	// Therefore EBP hasn't been pushed nor switched yet
-	// (at the top of the stack there's only saved EIP)
-
-	CONTEXT context;
-	HANDLE hProc = GetCurrentProcess();		// pseudo-handle (only valid within the thread)
-	DWORD pRead = 0;
-	LPVOID testAddr;
-
-	memset(&context, 0, sizeof(CONTEXT));	// initialize with 0x00 bytes
-	context.ContextFlags = CONTEXT_FULL;
-
-	//////////////////////////////////////////////////////////////////
-	// NOTE: Neither GetThreadContext nor RtlCaptureContext worked.
-	// So this is an alternative way to get some of the CONTEXT
-	// On a related note: "Real men do it in assembler" :)
-	///////////////////////////////////////////////////////////////////
-	__asm
-	{
-		call x
-		x: 	pop eax					; GetPC trick
-			mov context.Eip, eax	; EIP
-			mov context.Esp, esp	; ESP  :)
-			mov context.Ebp, ebp	; EBP
-	}
-
-
-	// The fuzzing test cases are generated here
-	char* test = GetFuzzStringCase();
-
-
-	///////////////////////////////////////////////////////////////////
-	// Copy the test string into the victim memory space.
-	//
-	// I need to place the test string in our memory space
-	// so it'll still be there after detour returns.
-	///////////////////////////////////////////////////////////////////
-
-	printf("[debug] Execution Detoured. String Fuzz Case: %s\n", test);
-
-	testAddr = VirtualAlloc(
-			NULL,	// I don't care where
-			strlen(test),
-			MEM_COMMIT | MEM_RESERVE,
-			PAGE_READWRITE);
-
-	if(testAddr == NULL)
-		printf("[BoykaDLL - Detoured Function] Failed to VirtualAlloc()\n");
-		
-
-	int wrStatus = WriteProcessMemory(
-			hProc,
-			(LPVOID)testAddr,
-			(LPVOID)test,
-			strlen(test),
-			NULL);
-
-	if(wrStatus == 0)
-		printf("[BoykaDLL - Detoured Function] Failed to WriteProcessMemory()\n");
-		
-
-	ReadProcessMemory(
-			hProc,
-			(LPVOID)(context.Ebp + 8),
-			(LPVOID)&pRead,
-			4, // buffer *pointer*
-			NULL);
-			
-	/* Just some debug info
-	printf("[debug] EBP is located at %08x\n", context.Ebp);
-	printf("[debug] EBP + 8 contains %08x\n", pRead);
-	printf("[debug] This points to %s\n", pRead);
-	*/
-
-	WriteProcessMemory(
-			hProc,
-			(LPVOID)(context.Ebp + 8),
-			(LPVOID)&testAddr,
-			4,
-			NULL);
-
-	// Cleanup
-	CloseHandle(hProc);
-
-
-	// It transfers execution back to the original point.
-	return FuncToDetour(buf);
+	if(!WithinLoopFlag)
+		return FreeLibrary(hModule);
+	else
+		return TRUE;
 }
 
 
+BOOL WINAPI MyCloseHandle(HANDLE hMyHandle)
+{
+	if(!WithinLoopFlag)
+		return detCloseHandle(hMyHandle);
+	else
+		return TRUE;
+}
+
+
+void __cdecl MyFree(void *mem)
+{
+	// flag not set: call free as usual
+	// flag set: don't do anything
+	if(!WithinLoopFlag) free(mem);
+}
+
+
+HGLOBAL WINAPI MyGlobalFree(HGLOBAL hMem)
+{
+	if(!WithinLoopFlag)
+		return detGlobalFree(hMem);
+	else
+		return NULL;
+}
+
+
+HLOCAL WINAPI MyLocalFree(HLOCAL hMem)
+{
+	if(!WithinLoopFlag)
+		return detLocalFree(hMem);
+	else
+		return NULL;
+}
+
+
+BOOL WINAPI MyVirtualFree(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeType)
+{
+	if(!WithinLoopFlag)
+		return detVirtualFree(lpAddress, dwSize, dwFreeType);
+	else
+		return TRUE;
+}
+
+
+BOOL WINAPI MyHeapFree(HANDLE hHeap, DWORD dwFlags, LPVOID lpMem)
+{
+	if(!WithinLoopFlag)
+		return detHeapFree(hHeap, dwFlags, lpMem);
+	else
+		return TRUE;
+}
+
+
+BOOL WINAPI MyHeapDestroy(HANDLE hHeap)
+{
+	if(!WithinLoopFlag)
+		return detHeapDestroy(hHeap);
+	else
+		return TRUE;
+}
+
+
+// Don't forget to specify here the function call type (cdecl, stdcall, etc.)
+char* __cdecl MyDetourFunction(char* login, char* szPacket, unsigned int len)
+{	
+	// We need to specify the function prototype so that 
+	// we have access to the arguments :)
+	login	= GetFuzzStringCase();
+	len		= GetFuzzIntegerCase();
+
+	//free(testCase.szStringCase);
+	// Fill the current test case structure
+	testCase.szStringCase = (char*)malloc(strlen(login));
+	strcpy(testCase.szStringCase, login);
+	testCase.iIntegerCase = len;
+
+	// It transfers execution back to the original point.
+	return detFunc(login, szPacket, len);
+}
 
 
 /////////////////////////////////////////////////////////////////////
@@ -153,23 +166,123 @@ BOOL APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 	switch(Reason)
 	{
 		case DLL_PROCESS_ATTACH:
-			/* Microsoft DETOURS stuff */
+			/* Detour interesting function */
 			DisableThreadLibraryCalls(hDLL);
 			DetourTransactionBegin();
 			DetourUpdateThread(GetCurrentThread());
-			DetourAttach(&(PVOID&)FuncToDetour, MyDetourFunction); // actual detour fn_a -> fn_b
+			DetourAttach(&(PVOID&)detFunc, MyDetourFunction); // actual detour fn_a -> fn_b
 			if(DetourTransactionCommit() == NO_ERROR)
-				OutputDebugString("send() detoured successfully");				
+				OutputDebugString("function detoured successfully");
+			/* Detour Free()
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourAttach(&(PVOID&)detFree, MyFree);
+			if(DetourTransactionCommit() == NO_ERROR)
+				OutputDebugString("Free() detoured successfully");
+			*/
+			/* Detour CloseHandle() */
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourAttach(&(PVOID&)detCloseHandle, MyCloseHandle);
+			if(DetourTransactionCommit() == NO_ERROR)
+				OutputDebugString("CloseHandle() detoured successfully");
+			/* Detour FreeLibrary() */
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourAttach(&(PVOID&)detFreeLibrary, MyFreeLibrary);
+			if(DetourTransactionCommit() == NO_ERROR)
+				OutputDebugString("FreeLibrary() detoured successfully");
+			/* Detour GlobalFree() */
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourAttach(&(PVOID&)detGlobalFree, MyGlobalFree);
+			if(DetourTransactionCommit() == NO_ERROR)
+				OutputDebugString("GlobalFree() detoured successfully");
+			/* Detour LocalFree() */
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourAttach(&(PVOID&)detLocalFree, MyLocalFree);
+			if(DetourTransactionCommit() == NO_ERROR)
+				OutputDebugString("LocalFree() detoured successfully");
+			/* Detour VirtualFree() */
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourAttach(&(PVOID&)detVirtualFree, MyVirtualFree);
+			if(DetourTransactionCommit() == NO_ERROR)
+				OutputDebugString("VirtualFree() detoured successfully");
+			/* Detour HeapFree() */
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourAttach(&(PVOID&)detHeapFree, MyHeapFree);
+			if(DetourTransactionCommit() == NO_ERROR)
+				OutputDebugString("HeapFree() detoured successfully");
+			/* Detour HeapDestroy() */
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourAttach(&(PVOID&)detHeapDestroy, MyHeapDestroy);
+			if(DetourTransactionCommit() == NO_ERROR)
+				OutputDebugString("HeapDestroy() detoured successfully");
+
 			break;
 
 
 		case DLL_PROCESS_DETACH:
-			/* Microsoft DETOURS stuff */
+			/* De-Detour interesting function */
 			DetourTransactionBegin();
 			DetourUpdateThread(GetCurrentThread());
-			DetourDetach(&(PVOID&)FuncToDetour, MyDetourFunction); // removing the detour
+			DetourDetach(&(PVOID&)detFunc, MyDetourFunction); // removing the detour
 			if(DetourTransactionCommit() == NO_ERROR)
-				OutputDebugString("send() detour removed");
+				OutputDebugString("function detour removed");
+			/* De-Detour Free() function
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourDetach(&(PVOID&)detFree, MyFree);
+			if(DetourTransactionCommit() == NO_ERROR)
+				OutputDebugString("Free() detour removed");
+			*/
+			/* De-Detour CloseHandle() function */
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourDetach(&(PVOID&)detCloseHandle, MyCloseHandle);
+			if(DetourTransactionCommit() == NO_ERROR)
+				OutputDebugString("CloseHandle() detour removed");
+			/* De-Detour FreeLibrary() */
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourDetach(&(PVOID&)detFreeLibrary, MyFreeLibrary);
+			if(DetourTransactionCommit() == NO_ERROR)
+				OutputDebugString("FreeLibrary() detour removed");
+			/* De-Detour GlobalFree() */
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourDetach(&(PVOID&)detGlobalFree, MyGlobalFree);
+			if(DetourTransactionCommit() == NO_ERROR)
+				OutputDebugString("GlobalFree() detour removed");
+			/* De-Detour LocalFree() */
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourDetach(&(PVOID&)detLocalFree, MyLocalFree);
+			if(DetourTransactionCommit() == NO_ERROR)
+				OutputDebugString("LocalFree() detour removed");
+			/* De-Detour VirtualFree() */
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourDetach(&(PVOID&)detVirtualFree, MyVirtualFree);
+			if(DetourTransactionCommit() == NO_ERROR)
+				OutputDebugString("VirtualFree() detour removed");
+			/* Detour HeapFree() */
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourDetach(&(PVOID&)detHeapFree, MyHeapFree);
+			if(DetourTransactionCommit() == NO_ERROR)
+				OutputDebugString("HeapFree() detour removed");
+			/* Detour HeapDestroy() */
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourDetach(&(PVOID&)detHeapDestroy, MyHeapDestroy);
+			if(DetourTransactionCommit() == NO_ERROR)
+				OutputDebugString("HeapDestroy() detour removed");
+
 			break;
 
 
@@ -181,6 +294,21 @@ BOOL APIENTRY DllMain(HMODULE hDLL, DWORD Reason, LPVOID Reserved)
 	return TRUE;
 }
 
+
+
+///////////////////////////////////////////////////////////////////
+// Exported functions
+///////////////////////////////////////////////////////////////////
+char* currentFuzzStringCase()
+{
+	return testCase.szStringCase;
+}
+
+
+int currentFuzzIntegerCase()
+{
+	return testCase.iIntegerCase;
+}
 
 
 ///////////////////////////////////////////////////////////////////

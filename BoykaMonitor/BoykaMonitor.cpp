@@ -49,7 +49,6 @@ main(int argc, char *argv[])
 			return 1;
 		}
 
-	printf("[Debug - PrivEsc] Setting SeDebugPrivilege on this process...\n");
 
 	if(SetPrivilege(hThisProcess, SE_DEBUG_NAME, TRUE))
 		printf("[Debug - PrivEsc] Successfully set SeDebugPrivilege :)\n");
@@ -185,8 +184,8 @@ main(int argc, char *argv[])
 
 				dwContinueStatus = DBG_CONTINUE;
 				break;
-
 			case EXCEPTION_STACK_OVERFLOW:
+				// This is in response to a Stack Exhaustion ;)
 				lso = LogExceptionStackOverflow(bpiMon);
 				CommunicateToConsole(sockMon, msgSO);
 				WriteMiniDumpFile(&de);

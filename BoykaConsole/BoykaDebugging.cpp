@@ -91,8 +91,8 @@ ConsoleDebuggingThread(LPVOID lpParam)
 						// This will execute only if the CS is signaled
 						EnterCriticalSection(&boyka_cs);
 
-						printf("[Debug - DebugLoop] Hit RestoreProcessState Breakpoint!\n");
-						printf("[Debug - DebugLoop] *** Iteration Number: %u ***\n", iterationNumber++);
+						printf("[Debug - DebugLoop] %% Hit RestoreProcessState Breakpoint! %%\n");
+						printf("[Debug - DebugLoop] [[Iteration Number %u]]\n", iterationNumber++);
 
 						dwContinueStatus = RestoreProcessState(de.dwProcessId);	// debuggee's PID
 
@@ -103,11 +103,16 @@ ConsoleDebuggingThread(LPVOID lpParam)
 						// NOTE 1: This is going to be called ONLY ONCE
 						// NOTE 2: The saved EIP will be the one of the next instruction. Nevertheless it could be that
 						// after returning, the function is called again from another one. Therefore the RestoreBreakpoint()
-						printf("[Debug - DebugLoop] Hit SaveProcessState Breakpoint!\n");
+						printf("[Debug - DebugLoop] %% Hit SaveProcessState Breakpoint! %%\n");
 						RestoreBreakpoint(hProcess, de.dwThreadId, (DWORD)de.u.Exception.ExceptionRecord.ExceptionAddress, originalByteBegin);
 						dwContinueStatus = SaveProcessState(de.dwProcessId);
 					}
 
+				break;
+			case EXCEPTION_ACCESS_VIOLATION:
+				// To help debug client side crashes. It will happen,
+				// we are indeed touching where we are not supposed to...
+				WriteMiniDumpFile(&de);
 				break;
 
 			default:	/* Unhandled exception. Just do some logging right now */
@@ -301,7 +306,7 @@ RestoreBreakpoint(HANDLE hProcess, DWORD dwThreadId, DWORD dwAddress, BYTE origi
 			DisplayError();
 		}
 	else {
-			printf("[Debug - Restore BP] Wrote back 0x%x to 0x%08x.\n", originalByte, dwAddress);
+			//printf("[Debug - Restore BP] Wrote back 0x%x to 0x%08x.\n", originalByte, dwAddress);
 	}
 
 	FlushInstructionCache(	// In case instruction has been cached by CPU
@@ -337,6 +342,10 @@ LogExceptionAccessViolation(BOYKAPROCESSINFO bpi)
 unsigned int
 LogExceptionStackOverflow(BOYKAPROCESSINFO bpi)
 {
+	printf("**********************************\n");
+	printf("[debug] Stack Exhaustion detected!\n");
+	printf("**********************************\n");
+
 	return 0;
 }
 

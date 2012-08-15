@@ -5,6 +5,8 @@
 // Server and Client side debuggers to talk to each other.
 //////////////////////////////////////////////////////////////////////////////////////
 
+#undef UNICODE
+
 #include <winsock.h>
 #include <string.h>
 #include <stdio.h>
@@ -71,7 +73,7 @@ ListenerThread(LPVOID lpParam)
 		return 1;
 	}
 	else
-		printf("[debug] Bound to 0.0.0.0:1337\n");
+		printf("[debug] ## Bound to 0.0.0.0:1337 ##\n");
 
 
 	// LISTEN
@@ -106,7 +108,7 @@ ListenerThread(LPVOID lpParam)
 	if(sockOptRes == SOCKET_ERROR)
 		printf("[debug - setsockopt] Recv() Timeout couldn't be set.\n");
 	else
-		printf("[debug - setsockopt] Recv() Timeout set to %u milliseconds.\n", sTimeout);
+		//printf("[debug - setsockopt] Recv() Timeout set to %u milliseconds.\n", sTimeout);
 
 
 	// I don't need the server socket anymore
@@ -120,11 +122,12 @@ ListenerThread(LPVOID lpParam)
 	do {
 			// --------- Thread Synchronization. Start blocking. ---------
 			EnterCriticalSection(&boyka_cs);
-			printf("[Listener Thread] Entered the critical section\n");
+			//printf("[Listener Thread] Entered the critical section\n");
 
 			// Recv() is blocking, we will be within the critical section 
 			// (blocking the snapshot loop) until a TIMEOUT occurs
-			printf("[Debug] Expecting to RECV() something...\n");
+
+			//printf("[Debug] Expecting to RECV() something...\n");
 			iRecv = recv(sClient, szRecvBuffer, sizeof(szRecvBuffer), 0);
 			if (iRecv == SOCKET_ERROR)
 			{
@@ -139,7 +142,8 @@ ListenerThread(LPVOID lpParam)
 				else
 				{
 					// It TIMED OUT, this is somehow expected
-					printf("[Debug] RECV() TIMED OUT\n");
+
+					//printf("[Debug] RECV() TIMED OUT\n");
 					LeaveCriticalSection(&boyka_cs);
 					//Sleep(500);	// TODO: Possibly remove this
 					continue;
@@ -190,7 +194,6 @@ ListenerThread(LPVOID lpParam)
 }
 
 
-
 unsigned int
 ProcessIncomingData(char *szBuffer)
 {
@@ -198,8 +201,55 @@ ProcessIncomingData(char *szBuffer)
 	// It parses the incoming string and accordingly instruct:
 	//	1) to log the last packet, in case it resulted in an exception
 	//	2) to restore the process state (send the next packet)
+	char msgAV[] = "Access violation detected!";
+	char msgSO[] = "Stack overflow detected!";
 
-	printf("[debug] ProcessIncomingData() called with buffer: '%s'\n", szBuffer);
+	////////////////////////////////////////////////////////////////////
+	// This is just UGLY but so is life with DLLs
+	typedef char* (*AddrcFuzzStringCase)(void);
+	typedef int (*AddrcFuzzIntegerCase)(void);
+
+	AddrcFuzzStringCase _pCurrentFuzzStringCase;
+	AddrcFuzzIntegerCase _pCurrentFuzzIntegerCase;
+	HINSTANCE hInstLibrary = LoadLibrary("BoykaDLL.dll");
+
+	if(hInstLibrary)
+	{
+		_pCurrentFuzzStringCase = (AddrcFuzzStringCase)GetProcAddress(hInstLibrary, "currentFuzzStringCase");
+		_pCurrentFuzzIntegerCase = (AddrcFuzzIntegerCase)GetProcAddress(hInstLibrary, "currentFuzzIntegerCase");
+	}
+	else
+	{
+		printf("[x] FATAL. DLL Failed to load.");
+	}
+
+	////////////////////////////////////////////////////////////////////
+
+	if(strcmp(szBuffer, msgAV) == 0)
+	{
+		// access violation
+		printf("-[ Access Violation detected ]-\n");
+		if(_pCurrentFuzzStringCase)
+			printf("String test case: '%s'\n", _pCurrentFuzzStringCase());
+		if(_pCurrentFuzzStringCase)
+			printf("Integer test case: %08x\n", _pCurrentFuzzIntegerCase());
+	}
+	else if(strcmp(szBuffer, msgAV) == 0)
+	{
+		// stack exhaustion
+		printf("-[ Stack Exhaustion detected ]-\n");
+		if(_pCurrentFuzzStringCase)
+			printf("String test case: '%s'\n", _pCurrentFuzzStringCase());
+		if(_pCurrentFuzzStringCase)
+			printf("Integer test case: %08x\n", _pCurrentFuzzIntegerCase());
+	}
+	else
+	{
+		printf("[x]Received unknown message from BoykaMonitor: %s\n", szBuffer);
+	}
+
+	if(hInstLibrary)
+		FreeLibrary(hInstLibrary);
 
 	return BOYKA_PACKET_PROCESSED;
 }
