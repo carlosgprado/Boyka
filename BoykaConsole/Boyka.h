@@ -17,12 +17,12 @@
 // VERY IMPORTANT STUFF
 // These two breakpoints define our execution (fuzzing) loop
 /////////////////////////////////////////////////////////////////////////////////////
-#define dwBeginLoopAddress	0x0042860E	// Begin Loop
-#define dwExitLoopAddress	0x00428634	// End Loop
+#define dwBeginLoopAddress	0x0042861E	// Begin Loop
+#define dwExitLoopAddress	0x00428642	// End Loop
 
 // DON'T FORGET TO CHANGE THE PROTOTYPE and 
 // CALL CONVENTION on BoykaDLL.cpp !!!!
-#define dwDetouredFunctionAddress	0x00428900
+#define dwDetouredFunctionAddress	0x00428960
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // Console socket timeout (milliseconds.)

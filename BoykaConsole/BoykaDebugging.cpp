@@ -92,7 +92,7 @@ ConsoleDebuggingThread(LPVOID lpParam)
 						EnterCriticalSection(&boyka_cs);
 
 						printf("[Debug - DebugLoop] %% Hit RestoreProcessState Breakpoint! %%\n");
-						printf("[Debug - DebugLoop] [[Iteration Number %u]]\n", iterationNumber++);
+						printf("----------------------------------- Iteration Number %u -----------------------------------\n\n", iterationNumber++);
 
 						dwContinueStatus = RestoreProcessState(de.dwProcessId);	// debuggee's PID
 
@@ -232,7 +232,7 @@ SetBreakpoint(HANDLE hProcess, DWORD dwAddress)
 			hProcess,
 			(void*)dwAddress,
 			&originalByte,
-			1,	// ONE BYTE to rule them all
+			1,	// ONE BYTE TO RULE THEM ALL
 			NULL
 			);
 
@@ -327,11 +327,9 @@ RestoreBreakpoint(HANDLE hProcess, DWORD dwThreadId, DWORD dwAddress, BYTE origi
 unsigned int
 LogExceptionAccessViolation(BOYKAPROCESSINFO bpi)
 {
-	// TODO: Maybe return type could be something more complex
-	//		 than int. Some kind of structure? 
-
 	printf("**********************************\n");
-	printf("[debug] Access violation detected!\n");
+	printf("*   Access violation detected!   *\n");
+	printf("*                                *\n");
 	printf("**********************************\n");
 
 
@@ -343,7 +341,8 @@ unsigned int
 LogExceptionStackOverflow(BOYKAPROCESSINFO bpi)
 {
 	printf("**********************************\n");
-	printf("[debug] Stack Exhaustion detected!\n");
+	printf("*   Stack Exhaustion detected!   *\n");
+	printf("*                                *\n");
 	printf("**********************************\n");
 
 	return 0;

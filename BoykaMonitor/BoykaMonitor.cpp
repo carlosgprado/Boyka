@@ -180,7 +180,8 @@ main(int argc, char *argv[])
 				lav = LogExceptionAccessViolation(bpiMon);
 				CommunicateToConsole(sockMon, msgAV);
 				WriteMiniDumpFile(&de);
-				RestoreProcessState(bpiMon.Pid);
+				// RestoreProcessState(bpiMon.Pid);
+				return 0;
 
 				dwContinueStatus = DBG_CONTINUE;
 				break;
@@ -189,7 +190,8 @@ main(int argc, char *argv[])
 				lso = LogExceptionStackOverflow(bpiMon);
 				CommunicateToConsole(sockMon, msgSO);
 				WriteMiniDumpFile(&de);
-				RestoreProcessState(bpiMon.Pid);
+				// RestoreProcessState(bpiMon.Pid);
+				return 0;
 
 				dwContinueStatus = DBG_CONTINUE;
 				break;

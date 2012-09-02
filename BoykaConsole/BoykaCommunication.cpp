@@ -14,6 +14,10 @@
 
 #pragma comment(lib, "ws2_32.lib")
 
+extern "C" {  // unmangled var name, please
+	__declspec(dllimport) BOYKATESTCASE testCase; // I need to import this symbol 
+}
+
 
 // This little thing will allow me to synchronize threads.
 CRITICAL_SECTION	boyka_cs;
@@ -145,7 +149,6 @@ ListenerThread(LPVOID lpParam)
 
 					//printf("[Debug] RECV() TIMED OUT\n");
 					LeaveCriticalSection(&boyka_cs);
-					//Sleep(500);	// TODO: Possibly remove this
 					continue;
 				}
 			}	
@@ -203,53 +206,37 @@ ProcessIncomingData(char *szBuffer)
 	//	2) to restore the process state (send the next packet)
 	char msgAV[] = "Access violation detected!";
 	char msgSO[] = "Stack overflow detected!";
+	char msgInitial[] = "Connection to console established!";
+
 
 	////////////////////////////////////////////////////////////////////
-	// This is just UGLY but so is life with DLLs
-	typedef char* (*AddrcFuzzStringCase)(void);
-	typedef int (*AddrcFuzzIntegerCase)(void);
-
-	AddrcFuzzStringCase _pCurrentFuzzStringCase;
-	AddrcFuzzIntegerCase _pCurrentFuzzIntegerCase;
-	HINSTANCE hInstLibrary = LoadLibrary("BoykaDLL.dll");
-
-	if(hInstLibrary)
-	{
-		_pCurrentFuzzStringCase = (AddrcFuzzStringCase)GetProcAddress(hInstLibrary, "currentFuzzStringCase");
-		_pCurrentFuzzIntegerCase = (AddrcFuzzIntegerCase)GetProcAddress(hInstLibrary, "currentFuzzIntegerCase");
-	}
-	else
-	{
-		printf("[x] FATAL. DLL Failed to load.");
-	}
-
-	////////////////////////////////////////////////////////////////////
-
+	// Check the messages from BoykaMonitor and act accordingly
 	if(strcmp(szBuffer, msgAV) == 0)
 	{
 		// access violation
 		printf("-[ Access Violation detected ]-\n");
-		if(_pCurrentFuzzStringCase)
-			printf("String test case: '%s'\n", _pCurrentFuzzStringCase());
-		if(_pCurrentFuzzStringCase)
-			printf("Integer test case: %08x\n", _pCurrentFuzzIntegerCase());
+		printf("String test case: '%s'\n", testCase.szStringCase);
+		printf("Integer test case: %08x\n", testCase.iIntegerCase);
 	}
 	else if(strcmp(szBuffer, msgAV) == 0)
 	{
 		// stack exhaustion
 		printf("-[ Stack Exhaustion detected ]-\n");
-		if(_pCurrentFuzzStringCase)
-			printf("String test case: '%s'\n", _pCurrentFuzzStringCase());
-		if(_pCurrentFuzzStringCase)
-			printf("Integer test case: %08x\n", _pCurrentFuzzIntegerCase());
+		printf("String test case: '%s'\n", testCase.szStringCase);
+		printf("Integer test case: %08x\n", testCase.iIntegerCase);
+	}
+	else if(strcmp(szBuffer, msgInitial) == 0)
+	{
+		// Just the initial message
+		printf("%s\n", msgInitial);
 	}
 	else
 	{
+		// WTF is this?
 		printf("[x]Received unknown message from BoykaMonitor: %s\n", szBuffer);
 	}
 
-	if(hInstLibrary)
-		FreeLibrary(hInstLibrary);
+
 
 	return BOYKA_PACKET_PROCESSED;
 }

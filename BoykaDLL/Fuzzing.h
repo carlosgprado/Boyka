@@ -23,9 +23,7 @@ char *	RepeatedToken(char *, unsigned int, BOOL);
 /////////////////////////////////////////////////////////////////////////////////////
 
 char* StringFuzzCases[] = {
-	/* strings ripped from sulley */
-	// elaborate on this: strcat("/.:/", RepeatedToken("A", 5000, TRUE)),
-	// elaborate on this: strcat("/.../", RepeatedToken("A", 5000, TRUE)),
+	/* strings ripped from Sulley */
 	"/.../.../.../.../.../.../.../.../.../.../",
 	"/../../../../../../../../../../../../etc/passwd",
 	"/../../../../../../../../../../../../boot.ini",
@@ -37,11 +35,10 @@ char* StringFuzzCases[] = {
 	"!@#$%%^#$%#$@#$%$$@#$%^^**(()",
 	"%01%02%03%04%0a%0d%0aADSF",
 	"%01%02%03@%04%0a%0d%0aADSF",
-	"/%00/",
-	"%00/",
-	"%00",
-	"%u0000",
-	"%\xfe\xf0%\x00\xff",
+	// "/%00/",
+	// "%00/",
+	// "%00",
+	"%\xfe\xf0%\x01\xff",
 	RepeatedToken("%\xfe\xf0%\x01\xff", 20, TRUE),
 
 	/* format strings. */
@@ -70,8 +67,6 @@ char* StringFuzzCases[] = {
 	RepeatedToken("\xde\xad\xbe\xef", 10, TRUE),
 	RepeatedToken("\xde\xad\xbe\xef", 100, TRUE),
 	RepeatedToken("\xde\xad\xbe\xef", 1000, TRUE),
-	RepeatedToken("\xde\xad\xbe\xef", 10000, TRUE),
-	RepeatedToken("\x00", 1000, TRUE),
 
 	/* Some long strings
 	   TODO: Set other lengths as well */
